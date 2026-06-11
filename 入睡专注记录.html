@@ -1,0 +1,2516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>系统状态仪表盘</title>
+  <meta name="theme-color" content="#4CAF50">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <style>
+    /* ═══════════════════════════════════
+       全局 & 重置
+       ═══════════════════════════════════ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html {
+      font-size: 16px;
+      -webkit-text-size-adjust: 100%;
+    }
+    body {
+      font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+      background: #f8f9fa;
+      color: #333;
+      min-height: 100vh;
+      padding-bottom: 24px;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    input[type="text"], input[type="number"], input[type="time"], input[type="date"] {
+      -webkit-user-select: text;
+      user-select: text;
+    }
+
+    /* ═══════════════════════════════════
+       容器
+       ═══════════════════════════════════ */
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 12px 12px 0 12px;
+    }
+
+    /* ═══════════════════════════════════
+       卡片通用
+       ═══════════════════════════════════ */
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    /* ═══════════════════════════════════
+       标题区
+       ═══════════════════════════════════ */
+    .header {
+      text-align: center;
+      padding: 20px 16px;
+      margin-bottom: 12px;
+    }
+    .header h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 4px;
+    }
+    .header .subtitle {
+      font-size: 0.85rem;
+      color: #999;
+      letter-spacing: 0.5px;
+    }
+
+    /* ═══════════════════════════════════
+       系统警告条（多级别）
+       ═══════════════════════════════════ */
+    .sys-warning {
+      display: none;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      font-size: 0.88rem;
+      line-height: 1.5;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .sys-warning.show {
+      display: flex;
+    }
+    .sys-warning .warn-icon {
+      font-size: 1.2rem;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .sys-warning.severe {
+      background: #FFEBEE;
+      border-left: 4px solid #F44336;
+      color: #C62828;
+    }
+    .sys-warning.caution {
+      background: #FFF8E1;
+      border-left: 4px solid #FF9800;
+      color: #E65100;
+    }
+    .sys-warning.info {
+      background: #E3F2FD;
+      border-left: 4px solid #2196F3;
+      color: #1565C0;
+    }
+
+    /* ═══════════════════════════════════
+       连续观察行
+       ═══════════════════════════════════ */
+    .streak-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .streak-text {
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+    .streak-dots {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .streak-dots .dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .streak-dots .dot.excluded-dot { background: repeating-linear-gradient(45deg, #e0e0e0, #e0e0e0 2px, #f5f5f5 2px, #f5f5f5 5px); }
+
+    /* ═══════════════════════════════════
+       图表区
+       ═══════════════════════════════════ */
+    .chart-card .chart-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .chart-wrapper {
+      position: relative;
+      height: 35vh;
+      min-height: 240px;
+    }
+    .chart-wrapper canvas {
+      display: block;
+    }
+    .chart-wrapper.no-data canvas {
+      display: none;
+    }
+    .chart-placeholder {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #999;
+      font-size: 0.95rem;
+      text-align: center;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .chart-wrapper.no-data .chart-placeholder {
+      display: flex;
+    }
+    .view-switcher {
+      display: flex; gap: 6px; margin-bottom: 8px;
+    }
+    .view-btn {
+      flex: 1; height: 34px; border: 1px solid #e0e0e0; border-radius: 6px;
+      background: #fff; font-size: 0.85rem; font-family: inherit;
+      color: #888; cursor: pointer; transition: all 0.2s;
+    }
+    .view-btn.active { background: #4CAF50; color: #fff; border-color: #4CAF50; font-weight: 600; }
+    .nav-bar { display: none; align-items: center; justify-content: center; gap: 10px; margin-bottom: 6px; }
+    .nav-bar.show { display: flex; }
+    .nav-btn {
+      width: 30px; height: 30px; border: 1px solid #e0e0e0; border-radius: 6px;
+      background: #fff; font-size: 0.9rem; cursor: pointer; font-family: inherit; color: #666;
+    }
+    .nav-label { font-size: 0.9rem; font-weight: 600; color: #333; min-width: 100px; text-align: center; }
+    .chart-scroll-outer { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .chart-scroll-outer .chart-wrapper { min-width: 100%; }
+    .chart-hint {
+      font-size: 0.75rem;
+      color: #aaa;
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+    .chart-legend-inline {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      font-size: 0.78rem;
+      color: #888;
+      margin-top: 6px;
+    }
+    .chart-legend-inline span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .legend-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .legend-dot.focus { background: #2196F3; }
+    .legend-dot.sleep { background: #9C27B0; }
+    .legend-dot.lost  { background: #F44336; }
+    .legend-dot.excluded { background: #ccc; border: 1px dashed #999; }
+
+    /* ═══════════════════════════════════
+       系统洞察卡片
+       ═══════════════════════════════════ */
+    .insight-card .card-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    .insight-empty {
+      text-align: center;
+      color: #ccc;
+      font-size: 0.85rem;
+      padding: 12px 0;
+    }
+    .avg-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+      font-size: 0.85rem;
+    }
+    .avg-table th {
+      text-align: left;
+      color: #999;
+      font-weight: 500;
+      padding: 3px 8px;
+      font-size: 0.73rem;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .avg-table td {
+      padding: 5px 8px;
+      font-weight: 600;
+    }
+    .avg-table .avg-label {
+      color: #666;
+      font-weight: 500;
+    }
+    .avg-table .avg-val-good { color: #2E7D32; }
+    .avg-table .avg-val-warn { color: #E65100; }
+    .avg-table .avg-val-bad  { color: #C62828; }
+    .advice-block {
+      background: #fafafa;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 0.85rem;
+      line-height: 1.7;
+      color: #555;
+    }
+    .advice-block .advice-title {
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: #333;
+      font-size: 0.88rem;
+    }
+
+    /* 直言建议块 */
+    .straight-talk {
+      background: #f7f3eb;
+      border-left: 3px solid #8B7355;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      font-size: 0.85rem;
+      line-height: 1.8;
+      color: #4a3728;
+      font-style: italic;
+    }
+    .straight-talk .st-line {
+      margin-bottom: 2px;
+    }
+    .straight-talk .st-line:last-child {
+      margin-bottom: 0;
+    }
+
+    /* ═══════════════════════════════════
+       输入区
+       ═══════════════════════════════════ */
+    .input-group {
+      margin-bottom: 18px;
+    }
+    .input-group:last-of-type {
+      margin-bottom: 0;
+    }
+    .input-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .input-label-row .label-text {
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+    .input-hint {
+      font-size: 0.75rem;
+      color: #bbb;
+    }
+
+    /* 日期输入 */
+    input[type="date"] {
+      width: 100%;
+      height: 48px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 0 12px;
+      font-size: 1.1rem;
+      font-family: inherit;
+      color: #333;
+      background: #fff;
+      outline: none;
+      transition: border-color 0.2s;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    input[type="date"]:focus {
+      border-color: #4CAF50;
+    }
+
+    /* 时间输入 */
+    input[type="time"] {
+      width: 100%;
+      height: 48px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 0 12px;
+      font-size: 1.1rem;
+      font-family: inherit;
+      color: #333;
+      background: #fff;
+      outline: none;
+      transition: border-color 0.2s;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    input[type="time"]:focus {
+      border-color: #9C27B0;
+    }
+
+    /* 数字输入 */
+    input[type="number"].focus-input {
+      width: 100%;
+      height: 48px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 0 12px;
+      font-size: 1.1rem;
+      font-family: inherit;
+      color: #333;
+      background: #fff;
+      outline: none;
+      transition: border-color 0.2s;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    input[type="number"].focus-input:focus {
+      border-color: #2196F3;
+    }
+
+    /* 开关（toggle） */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .toggle-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .toggle-state {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #999;
+      transition: color 0.25s;
+      min-width: 20px;
+      text-align: right;
+    }
+    .toggle-state.is-on {
+      color: #D32F2F;
+    }
+    .toggle-switch {
+      position: relative;
+      width: 52px;
+      height: 30px;
+      flex-shrink: 0;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      position: absolute;
+    }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #d0d0d0;
+      border-radius: 30px;
+      transition: background 0.25s;
+    }
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      height: 24px;
+      width: 24px;
+      left: 3px;
+      bottom: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.25s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+    .toggle-switch input:checked + .toggle-slider {
+      background: #F44336;
+    }
+    .toggle-switch input:checked + .toggle-slider::before {
+      transform: translateX(22px);
+    }
+
+    /* 触发器输入（条件显示） */
+    .trigger-wrapper {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease, margin-top 0.3s ease, opacity 0.3s ease;
+      opacity: 0;
+      margin-top: 0;
+    }
+    .trigger-wrapper.open {
+      max-height: 60px;
+      opacity: 1;
+      margin-top: 12px;
+    }
+    .trigger-input {
+      width: 100%;
+      height: 44px;
+      border: 1px solid #FFCDD2;
+      border-radius: 8px;
+      padding: 0 12px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      color: #333;
+      outline: none;
+      background: #FFF5F5;
+      transition: border-color 0.2s;
+    }
+    .trigger-input:focus {
+      border-color: #F44336;
+    }
+    .trigger-input::placeholder {
+      color: #ccc;
+      font-style: italic;
+    }
+
+    /* ═══════════════════════════════════
+       提交按钮
+       ═══════════════════════════════════ */
+    .submit-btn {
+      width: 100%;
+      height: 48px;
+      border: none;
+      border-radius: 8px;
+      background: #4CAF50;
+      color: #fff;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.2s, transform 0.1s;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .submit-btn:hover {
+      background: #43A047;
+    }
+    .submit-btn:active {
+      transform: scale(0.98);
+    }
+    .today-status {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #4CAF50;
+      margin-top: 8px;
+      display: none;
+    }
+    .feedback-text {
+      font-size: 0.85rem;
+      color: #555;
+      text-align: left;
+      margin-top: 10px;
+      line-height: 1.7;
+      min-height: 0;
+      padding: 8px 10px;
+      background: #fafafa;
+      border-radius: 6px;
+      display: none;
+    }
+    .feedback-text.has-content {
+      display: block;
+    }
+
+    /* ═══════════════════════════════════
+       历史记录折叠区
+       ═══════════════════════════════════ */
+    .history-card details summary {
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: #666;
+      padding: 4px 0;
+      list-style: none;
+    }
+    .history-card details summary::-webkit-details-marker {
+      display: none;
+    }
+    .history-card details summary::before {
+      content: '▶ ';
+      display: inline-block;
+      transition: transform 0.2s;
+      font-size: 0.7rem;
+    }
+    .history-card details[open] summary::before {
+      transform: rotate(90deg);
+    }
+    .history-list {
+      margin-top: 8px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .history-row {
+      display: flex;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid #f5f5f5;
+      font-size: 0.85rem;
+      gap: 6px;
+    }
+    .history-row .h-date {
+      min-width: 44px;
+      color: #aaa;
+      font-size: 0.8rem;
+    }
+    .history-row .h-scores {
+      white-space: nowrap;
+      font-size: 0.82rem;
+    }
+    .history-row .h-note {
+      flex: 1;
+      color: #999;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.8rem;
+      min-width: 0;
+    }
+    .history-row .h-del {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.75rem;
+      padding: 4px;
+      opacity: 0.5;
+      transition: opacity 0.2s;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .history-row .h-del:hover {
+      opacity: 1;
+    }
+    .history-more {
+      text-align: center;
+      color: #ccc;
+      font-size: 0.75rem;
+      padding: 8px 0 4px;
+    }
+
+    /* ═══════════════════════════════════
+       桌面端微调
+       ═══════════════════════════════════ */
+    @media (min-width: 500px) {
+      .container {
+        padding: 16px 0 0 0;
+      }
+      body {
+        padding-bottom: 32px;
+      }
+      .streak-dots .dot {
+        width: 24px;
+        height: 24px;
+      }
+    }
+
+    /* ═══════════════════════════════════
+       小屏极致适配 (<360px)
+       ═══════════════════════════════════ */
+    @media (max-width: 360px) {
+      .header h1 {
+        font-size: 1.2rem;
+      }
+      .input-label-row .label-text {
+        font-size: 0.85rem;
+      }
+      .streak-dots .dot {
+        width: 17px;
+        height: 17px;
+      }
+      input[type="time"], input[type="date"], input[type="number"].focus-input {
+        height: 44px;
+        font-size: 1rem;
+      }
+      .submit-btn {
+        height: 44px;
+        font-size: 1rem;
+      }
+      .avg-table { font-size: 0.8rem; }
+      .advice-block { font-size: 0.8rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- 标题区 -->
+    <div class="header">
+      <h1>🌀 系统状态仪表盘</h1>
+      <div class="subtitle">睡眠锚点 · 专注产出 · 情绪扰动</div>
+    </div>
+
+    <!-- 系统警告条（多级别，条件显示） -->
+    <div class="sys-warning" id="sys-warning">
+      <span class="warn-icon" id="sys-warning-icon"></span>
+      <span id="sys-warning-text"></span>
+    </div>
+
+    <!-- 连续观察行 -->
+    <div class="card">
+      <div class="streak-row">
+        <span class="streak-text" id="streak-text">连续观察 0 天 · 累计 0 天</span>
+      </div>
+      <div class="streak-dots" id="streak-dots" style="margin-top: 10px;"></div>
+    </div>
+
+    <!-- 图表区 -->
+    <div class="card chart-card">
+      <div class="chart-title" id="chart-title">📊 趋势（14天）</div>
+      <div class="view-switcher" id="view-switcher">
+        <button class="view-btn active" data-view="day">14天</button>
+        <button class="view-btn" data-view="month">月</button>
+        <button class="view-btn" data-view="year">年</button>
+      </div>
+      <div class="nav-bar" id="nav-bar">
+        <button class="nav-btn" id="nav-prev">◀</button>
+        <span class="nav-label" id="nav-label">2026年5月</span>
+        <button class="nav-btn" id="nav-next">▶</button>
+      </div>
+      <div class="chart-scroll-outer" id="chart-scroll-outer">
+        <div class="chart-wrapper" id="chart-wrapper">
+          <canvas id="chart-canvas"></canvas>
+          <div class="chart-placeholder">
+            从今天开始观测你的系统。<br>每天记录入睡时间、专注时长和情绪状态，<br>两周后你会看到第一条反馈回路。
+          </div>
+        </div>
+      </div>
+      <div class="chart-legend-inline">
+        <span><span class="legend-dot focus"></span> 专注时长（分钟）</span>
+        <span><span class="legend-dot sleep"></span> 入睡时间（越上越早）</span>
+        <span><span class="legend-dot lost"></span> 情绪失控日</span>
+        <span><span class="legend-dot excluded"></span> 排除日</span>
+      </div>
+      <div class="chart-hint" id="chart-hint">
+        💡 睡眠线往上走 → 锚点在提前。专注线下坠且红点密集 → 情绪在消耗认知资源。
+      </div>
+    </div>
+
+    <!-- 系统洞察（平均值 + 建议） -->
+    <div class="card insight-card" id="insight-card">
+      <div class="card-title">📈 系统洞察</div>
+      <div id="insight-content"></div>
+    </div>
+
+    <!-- 输入区 -->
+    <div class="card" id="inputs-card">
+      <!-- 日期选择 -->
+      <div class="input-group">
+        <div class="input-label-row">
+          <span class="label-text">📅 日期</span>
+          <span class="input-hint">可补录历史</span>
+        </div>
+        <input type="date" id="input-date" aria-label="记录日期">
+      </div>
+
+      <!-- 入睡时间 -->
+      <div class="input-group">
+        <div class="input-label-row">
+          <span class="label-text">🌙 昨晚入睡时间</span>
+          <span class="input-hint">可选</span>
+        </div>
+        <input type="time" id="input-sleep" aria-label="昨晚入睡时间">
+      </div>
+
+      <!-- 专注时长 -->
+      <div class="input-group">
+        <div class="input-label-row">
+          <span class="label-text">🎯 该日专注总时长</span>
+          <span class="input-hint">可选</span>
+        </div>
+        <input type="number" id="input-focus" class="focus-input" min="0" max="600" step="5" placeholder="例如 120" inputmode="numeric" aria-label="专注总时长">
+      </div>
+
+      <!-- 情绪失控开关 -->
+      <div class="input-group">
+        <div class="toggle-row">
+          <span class="label-text">💢 该日是否有情绪失控</span>
+          <div class="toggle-right">
+            <span class="toggle-state" id="toggle-label-text">否</span>
+            <label class="toggle-switch" aria-label="情绪失控开关">
+              <input type="checkbox" id="toggle-lost">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+        <!-- 条件触发器 -->
+        <div class="trigger-wrapper" id="trigger-wrapper">
+          <input type="text" id="input-trigger" class="trigger-input" placeholder="什么引发的？（可选）" maxlength="50" aria-label="触发关键词">
+        </div>
+      </div>
+
+      <!-- 排除专注趋势 -->
+      <div class="input-group">
+        <div class="toggle-row">
+          <span class="label-text">🔕 排除当日专注趋势</span>
+          <div class="toggle-right">
+            <span class="toggle-state" id="toggle-exclude-label">否</span>
+            <label class="toggle-switch" aria-label="排除专注趋势开关">
+              <input type="checkbox" id="toggle-exclude">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 临时急事熬夜 -->
+      <div class="input-group">
+        <div class="toggle-row">
+          <span class="label-text">🚨 临时急事熬夜</span>
+          <div class="toggle-right">
+            <span class="toggle-state" id="toggle-emergency-label">否</span>
+            <label class="toggle-switch" aria-label="临时急事熬夜开关">
+              <input type="checkbox" id="toggle-emergency">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 提交区 -->
+    <div class="card">
+      <button class="submit-btn" id="submit-btn">📝 记录该日存量</button>
+      <div class="today-status" id="today-status">✅ 该日已观测</div>
+      <div class="feedback-text" id="feedback-text"></div>
+    </div>
+
+    <!-- 历史记录 -->
+    <div class="card history-card">
+      <details id="history-details">
+        <summary>📋 观测历史</summary>
+        <div class="history-list" id="history-list"></div>
+        <div class="history-more" id="history-more"></div>
+      </details>
+    </div>
+
+  </div>
+
+  <!-- Chart.js v4 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <script>
+  /* ═══════════════════════════════════════════════════════════════
+     模块 0 · 种子数据（首次加载自动写入）
+     ═══════════════════════════════════════════════════════════════ */
+
+  var SEED_DATA = [
+    { date: '2026-05-11', sleep_time: '01:02', focus_min: 360, lost_control: 0, trigger: '', exclude_focus: 0, emergency_late: 0 },
+    { date: '2026-05-12', sleep_time: '01:04', focus_min: 240, lost_control: 0, trigger: '', exclude_focus: 0, emergency_late: 0 }
+  ];
+
+  /* ═══════════════════════════════════════════════════════════════
+     模块 1 · PWA Manifest（IIFE）
+     ═══════════════════════════════════════════════════════════════ */
+  (function setupManifest() {
+    var manifest = {
+      name: '系统状态仪表盘',
+      short_name: '系统仪表盘',
+      start_url: '.',
+      display: 'standalone',
+      theme_color: '#4CAF50',
+      background_color: '#f8f9fa',
+      icons: [
+        { src: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192"><rect width="192" height="192" rx="40" fill="#4CAF50"/><circle cx="96" cy="80" r="50" fill="none" stroke="#fff" stroke-width="8" stroke-dasharray="12 8"/><circle cx="96" cy="80" r="30" fill="#fff" opacity="0.3"/><text x="96" y="155" text-anchor="middle" font-size="24" fill="#fff" font-weight="700">系统仪表盘</text></svg>'), sizes: '192x192', type: 'image/svg+xml' },
+        { src: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect width="512" height="512" rx="100" fill="#4CAF50"/><circle cx="256" cy="200" r="130" fill="none" stroke="#fff" stroke-width="20" stroke-dasharray="30 20"/><circle cx="256" cy="200" r="70" fill="#fff" opacity="0.3"/><text x="256" y="400" text-anchor="middle" font-size="60" fill="#fff" font-weight="700">系统仪表盘</text></svg>'), sizes: '512x512', type: 'image/svg+xml' }
+      ]
+    };
+    var blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+    var link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = URL.createObjectURL(blob);
+    document.head.appendChild(link);
+  })();
+
+  /* ═══════════════════════════════════════════════════════════════
+     模块 2 · 工具函数
+     ═══════════════════════════════════════════════════════════════ */
+
+  /* 图表视图状态 */
+  var viewMode = 'day';
+  var viewYear = new Date().getFullYear();
+  var viewMonth = new Date().getMonth() + 1;
+
+  var STORAGE_KEY = 'system-dashboard-data-v2';
+
+  function getToday() {
+    var d = new Date();
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
+
+  function getSelectedDate() {
+    var el = document.getElementById('input-date');
+    return el.value || getToday();
+  }
+
+  function getPastDays(n) {
+    var days = [];
+    var now = new Date();
+    for (var i = n - 1; i >= 0; i--) {
+      var d = new Date(now);
+      d.setDate(d.getDate() - i);
+      var dateStr = d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0');
+      days.push(dateStr);
+    }
+    return days;
+  }
+
+  function formatMD(dateStr) {
+    var parts = dateStr.split('-');
+    return parseInt(parts[1], 10) + '/' + parseInt(parts[2], 10);
+  }
+
+  function sleepToDecimal(hhmm) {
+    if (!hhmm || typeof hhmm !== 'string') return null;
+    hhmm = hhmm.trim();
+    if (!hhmm) return null;
+    var parts = hhmm.split(':');
+    if (parts.length !== 2) return null;
+    var h = parseInt(parts[0], 10);
+    var m = parseInt(parts[1], 10);
+    if (isNaN(h) || isNaN(m)) return null;
+    if (h < 18) h += 24;
+    return h + m / 60;
+  }
+
+  function decimalToSleep(dec) {
+    if (dec == null || isNaN(dec)) return '—';
+    var totalMin = Math.round(dec * 60);
+    var h = Math.floor(totalMin / 60) % 24;
+    var m = totalMin % 60;
+    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+  }
+
+  function isV2Record(rec) {
+    return rec && 'sleep_time' in rec && 'focus_min' in rec && 'lost_control' in rec;
+  }
+
+  function loadData() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED_DATA));
+        return SEED_DATA.map(function(r) { var o = {}; for (var k in r) o[k] = r[k]; return o; });
+      }
+      var data = JSON.parse(raw);
+      if (!Array.isArray(data)) return [];
+      // 补默认字段
+      for (var mi = 0; mi < data.length; mi++) {
+        if (data[mi].exclude_focus === undefined) data[mi].exclude_focus = 0;
+        if (data[mi].emergency_late === undefined) data[mi].emergency_late = 0;
+      }
+      return data.filter(isV2Record).sort(function(a, b) {
+        return a.date.localeCompare(b.date);
+      });
+    } catch (e) {
+      console.warn('localStorage 读取失败:', e);
+      return [];
+    }
+  }
+
+  /* ── 同步设置存取 ── */
+  function getSyncSettings() {
+    try {
+      var raw = localStorage.getItem('sync-settings');
+      return raw ? JSON.parse(raw) : { token: '', gistId: '' };
+    } catch(e) { return { token: '', gistId: '' }; }
+  }
+  function saveSyncSettings(s) {
+    localStorage.setItem('sync-settings', JSON.stringify(s));
+  }
+
+  /* ── 同步面板开关 ── */
+  function toggleSyncPanel() {
+    var panel = document.getElementById('syncPanel');
+    if (panel.style.display === 'none') {
+      var s = getSyncSettings();
+      document.getElementById('syncToken').value = s.token;
+      document.getElementById('syncGistId').value = s.gistId;
+      panel.style.display = 'block';
+    } else {
+      var token = document.getElementById('syncToken').value.trim();
+      var gistId = document.getElementById('syncGistId').value.trim();
+      saveSyncSettings({ token: token, gistId: gistId });
+      panel.style.display = 'none';
+    }
+  }
+
+  /* ── 推送到 Gist ── */
+  function syncPush() {
+    var s = getSyncSettings();
+    if (!s.token || !s.gistId) { setSyncStatus('请先填写 Token 和 Gist ID', '#F44336'); return; }
+    setSyncStatus('上传中...', '#888');
+    var raw = localStorage.getItem('system-dashboard-data-v2') || '[]';
+    fetch('https://api.github.com/gists/' + s.gistId, {
+      method: 'PATCH',
+      headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files: { 'sleep-data.json': { content: raw } } })
+    })
+    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function() { setSyncStatus('✅ 已上传', '#4CAF50'); })
+    .catch(function(e) { setSyncStatus('上传失败: ' + e.message, '#F44336'); });
+  }
+
+  /* ── 从 Gist 拉取并合并 ── */
+  function syncPull() {
+    var s = getSyncSettings();
+    if (!s.token || !s.gistId) { setSyncStatus('请先填写 Token 和 Gist ID', '#F44336'); return; }
+    setSyncStatus('拉取中...', '#888');
+    fetch('https://api.github.com/gists/' + s.gistId, {
+      headers: { 'Authorization': 'Bearer ' + s.token }
+    })
+    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(gist) {
+      var file = gist.files['sleep-data.json'];
+      if (!file || !file.content) throw new Error('Gist 中无数据');
+      var remoteData = JSON.parse(file.content);
+      if (!Array.isArray(remoteData)) throw new Error('数据格式错误');
+      // 合并：以日期为 key，远程数据覆盖本地同日期，保留本地独有的
+      var localData = loadData();
+      var merged = {};
+      for (var i = 0; i < localData.length; i++) { merged[localData[i].date] = localData[i]; }
+      for (var j = 0; j < remoteData.length; j++) {
+        var rd2 = remoteData[j];
+        var existing2 = merged[rd2.date];
+        if (existing2) {
+          if (rd2.exclude_focus === undefined) rd2.exclude_focus = existing2.exclude_focus;
+          if (rd2.emergency_late === undefined) rd2.emergency_late = existing2.emergency_late;
+        }
+        merged[rd2.date] = rd2;
+      }
+      var result = [];
+      var keys = Object.keys(merged).sort();
+      for (var k = 0; k < keys.length; k++) { result.push(merged[keys[k]]); }
+      saveData(result);
+      setSyncStatus('✅ 已合并 ' + result.length + ' 条', '#4CAF50');
+      // 刷新页面
+      var d = loadData();
+      renderChart(d, viewMode, viewYear, viewMonth);
+      renderStreak(d);
+      renderDots(d);
+      renderHistory(d);
+      renderSystemWarning(d);
+      renderInsight(d);
+      var today = getToday();
+      loadForDate(today, d);
+    })
+    .catch(function(e) { setSyncStatus('拉取失败: ' + e.message, '#F44336'); });
+  }
+
+  /* ── 复制数据到剪贴板 ── */
+  function exportDataToClipboard() {
+    var raw = localStorage.getItem('system-dashboard-data-v2') || '[]';
+    navigator.clipboard.writeText(raw).then(function() {
+      setSyncStatus('✅ 已复制到剪贴板', '#4CAF50');
+    }).catch(function() {
+      setSyncStatus('复制失败，请手动选择', '#F44336');
+    });
+  }
+
+  /* ── 从粘贴导入 ── */
+  function importDataFromPrompt() {
+    var txt = prompt('粘贴 JSON 数据：');
+    if (!txt) return;
+    try {
+      var imported = JSON.parse(txt);
+      if (!Array.isArray(imported)) throw new Error('不是数组');
+      var localData = loadData();
+      var merged = {};
+      for (var i = 0; i < localData.length; i++) { merged[localData[i].date] = localData[i]; }
+      for (var j = 0; j < imported.length; j++) {
+        var imp = imported[j];
+        var existing3 = merged[imp.date];
+        if (existing3) {
+          if (imp.exclude_focus === undefined) imp.exclude_focus = existing3.exclude_focus;
+          if (imp.emergency_late === undefined) imp.emergency_late = existing3.emergency_late;
+        }
+        merged[imp.date] = imp;
+      }
+      var result = [];
+      var keys = Object.keys(merged).sort();
+      for (var k = 0; k < keys.length; k++) { result.push(merged[keys[k]]); }
+      saveData(result);
+      setSyncStatus('✅ 已导入并合并 ' + result.length + ' 条', '#4CAF50');
+      var d = loadData();
+      renderChart(d, viewMode, viewYear, viewMonth);
+      renderStreak(d);
+      renderDots(d);
+      renderHistory(d);
+      renderSystemWarning(d);
+      renderInsight(d);
+      var today = getToday();
+      loadForDate(today, d);
+    } catch(e) {
+      setSyncStatus('导入失败: ' + e.message, '#F44336');
+    }
+  }
+
+  /* ── 状态提示 ── */
+  function setSyncStatus(msg, color) {
+    var el = document.getElementById('syncStatus');
+    el.textContent = msg;
+    el.style.color = color;
+    setTimeout(function() { el.textContent = ''; }, 3000);
+  }
+
+  /* ── 静默推送（submit 后自动调用） ── */
+  function syncPushSilent() {
+    var s = getSyncSettings();
+    if (!s.token || !s.gistId) return;
+    var raw = localStorage.getItem('system-dashboard-data-v2') || '[]';
+    fetch('https://api.github.com/gists/' + s.gistId, {
+      method: 'PATCH',
+      headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files: { 'sleep-data.json': { content: raw } } })
+    }).catch(function() {});
+  }
+
+  /* ── 自动拉取（页面加载时执行一次） ── */
+  function autoSyncPull() {
+    var s = getSyncSettings();
+    if (!s.token || !s.gistId) return;
+    fetch('https://api.github.com/gists/' + s.gistId, {
+      headers: { 'Authorization': 'Bearer ' + s.token }
+    })
+    .then(function(r) { if (!r.ok) return; return r.json(); })
+    .then(function(gist) {
+      if (!gist) return;
+      var file = gist.files['sleep-data.json'];
+      if (!file || !file.content) return;
+      var remoteData = JSON.parse(file.content);
+      if (!Array.isArray(remoteData)) return;
+      var localData = loadData();
+      var merged = {};
+      for (var i = 0; i < localData.length; i++) { merged[localData[i].date] = localData[i]; }
+      for (var j = 0; j < remoteData.length; j++) {
+        var rd = remoteData[j];
+        var existing = merged[rd.date];
+        if (existing) {
+          if (rd.exclude_focus === undefined) rd.exclude_focus = existing.exclude_focus;
+          if (rd.emergency_late === undefined) rd.emergency_late = existing.emergency_late;
+        }
+        merged[rd.date] = rd;
+      }
+      var result = [];
+      var keys = Object.keys(merged).sort();
+      for (var k = 0; k < keys.length; k++) { result.push(merged[keys[k]]); }
+      if (result.length > localData.length || JSON.stringify(result) !== JSON.stringify(localData)) {
+        saveData(result);
+        location.reload();
+      }
+    })
+    .catch(function() {});
+  }
+
+  function saveData(data) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      return true;
+    } catch (e) {
+      console.warn('localStorage 写入失败:', e);
+      alert('存储空间不足，请清理旧记录后重试。');
+      return false;
+    }
+  }
+
+  function findRecord(data, date) {
+    for (var i = 0; i < data.length; i++) {
+      if (data[i].date === date) return data[i];
+    }
+    return null;
+  }
+
+  function getRecentRecords(data, targetDate, n) {
+    var filtered = [];
+    for (var i = 0; i < data.length; i++) {
+      if (data[i].date <= targetDate) filtered.push(data[i]);
+    }
+    return filtered.slice(-n);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     模块 3 · 连续天数 & 徽章
+     ═══════════════════════════════════════════════════════════════ */
+
+  function calcStreak(data) {
+    if (data.length === 0) return { streak: 0, total: 0 };
+    var today = getToday();
+    var streak = 0;
+    var checkDate = new Date(today + 'T00:00:00');
+    for (var i = data.length - 1; i >= 0; i--) {
+      var recDate = data[i].date;
+      var expected = checkDate.getFullYear() + '-' +
+        String(checkDate.getMonth() + 1).padStart(2, '0') + '-' +
+        String(checkDate.getDate()).padStart(2, '0');
+      if (recDate === expected) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+    return { streak: streak, total: data.length };
+  }
+
+  function getStreakStyle(streak) {
+    if (streak >= 21) return { bg: '#FFD700', emoji: '🏆', label: '黄金观测者' };
+    if (streak >= 14) return { bg: '#C0C0C0', emoji: '🥈', label: '稳定追踪' };
+    if (streak >= 7)  return { bg: '#CD7F32', emoji: '🥉', label: '初具习惯' };
+    return { bg: 'transparent', emoji: '🌱', label: '' };
+  }
+
+  function renderStreak(data) {
+    var s = calcStreak(data);
+    var style = getStreakStyle(s.streak);
+    var el = document.getElementById('streak-text');
+    var badgeHtml = '';
+    if (s.streak >= 7) {
+      badgeHtml = ' <span style="background:' + style.bg +
+        ';color:#fff;padding:2px 8px;border-radius:10px;font-size:0.8rem;margin-left:6px;">' +
+        style.emoji + ' ' + style.label + '</span>';
+    }
+    el.innerHTML = '连续观测 ' + s.streak + ' 天 · 累计 ' + s.total + ' 天' + badgeHtml;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     模块 4 · 色块条（14 天）
+     ═══════════════════════════════════════════════════════════════ */
+
+  function renderDots(data) {
+    var container = document.getElementById('streak-dots');
+    var days = getPastDays(14);
+    var today = getToday();
+    container.innerHTML = '';
+    days.forEach(function(date) {
+      var dot = document.createElement('span');
+      dot.className = 'dot';
+      var rec = findRecord(data, date);
+      var isExcluded = rec && (rec.exclude_focus === 1 || rec.emergency_late === 1);
+      if (rec && !isExcluded) {
+        dot.style.background = '#4CAF50';
+      } else if (date === today) {
+        dot.style.background = '#fff';
+        dot.style.border = '2px dashed #4CAF50';
+      } else {
+        dot.style.background = '#e0e0e0';
+      }
+      if (isExcluded) dot.classList.add('excluded-dot');
+      dot.title = formatMD(date);
+      container.appendChild(dot);
+    });
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     模块 5 · 图表（双 Y 轴 + 红点标记）
+     ═══════════════════════════════════════════════════════════════ */
+
+  var chart = null;
+
+  /* ── 多视图数据准备 ── */
+  function prepareDayData(data) {
+    var days = getPastDays(14);
+    return buildChartData(data, days, days.map(formatMD));
+  }
+  function prepareMonthData(data, year, month) {
+    var dim = new Date(year, month, 0).getDate();
+    var ds = [], lb = [];
+    for (var d = 1; d <= dim; d++) {
+      ds.push(year + '-' + String(month).padStart(2, '0') + '-' + String(d).padStart(2, '0'));
+      lb.push(String(d));
+    }
+    return buildChartData(data, ds, lb);
+  }
+  function prepareYearData(data, year) {
+    var labels = [];
+    var periods = [];
+    for (var m = 1; m <= 12; m++) {
+      for (var hf = 0; hf < 2; hf++) {
+        var sd = hf === 0 ? 1 : 16;
+        var ed = hf === 0 ? 15 : new Date(year, m, 0).getDate();
+        labels.push(m + (hf === 0 ? '上' : '下'));
+        var pDays = [];
+        for (var dd = sd; dd <= ed; dd++) {
+          pDays.push(year + '-' + String(m).padStart(2, '0') + '-' + String(dd).padStart(2, '0'));
+        }
+        periods.push(pDays);
+      }
+    }
+    var fData = [], sData = [], lFlags = [];
+    for (var p = 0; p < periods.length; p++) {
+      var tf = 0, cf = 0, ts = 0, cs = 0, hl = false;
+      for (var q = 0; q < periods[p].length; q++) {
+        var rec = findRecord(data, periods[p][q]);
+        if (rec && isV2Record(rec)) {
+          if (rec.focus_min != null) { tf += rec.focus_min; cf++; }
+          if (rec.sleep_time) { var dec = sleepToDecimal(rec.sleep_time); if (dec != null) { ts += dec; cs++; } }
+          if (rec.lost_control === 1) hl = true;
+        }
+      }
+      fData.push(cf > 0 ? Math.round(tf / cf) : null);
+      sData.push(cs > 0 ? ts / cs : null);
+      lFlags.push(hl);
+    }
+    return { labels: labels, focusData: fData, sleepData: sData, lostFlags: lFlags };
+  }
+  function buildChartData(data, dateStrs, labels) {
+    var fd = [], sd = [], lf = [], ef = [];
+    for (var i = 0; i < dateStrs.length; i++) {
+      var rec = findRecord(data, dateStrs[i]);
+      if (rec && isV2Record(rec)) {
+        fd.push(rec.focus_min != null ? rec.focus_min : null);
+        sd.push(sleepToDecimal(rec.sleep_time));
+        lf.push(rec.lost_control === 1);
+        ef.push(rec.exclude_focus === 1 || rec.emergency_late === 1);
+      } else { fd.push(null); sd.push(null); lf.push(false); ef.push(false); }
+    }
+    return { labels: labels, focusData: fd, sleepData: sd, lostFlags: lf, dateStrs: dateStrs, excludeFlags: ef };
+  }
+  /* ── 更新视图UI（标题/导航/提示） ── */
+  function updateViewUI() {
+    var tel = document.getElementById('chart-title');
+    var nb = document.getElementById('nav-bar');
+    var nl = document.getElementById('nav-label');
+    var he = document.getElementById('chart-hint');
+    if (viewMode === 'day') {
+      tel.textContent = '📊 趋势（14天）';
+      nb.classList.remove('show');
+      he.textContent = '💡 睡眠线往上走 → 锚点在提前。专注线下坠且红点密集 → 情绪在消耗认知资源。';
+    } else if (viewMode === 'month') {
+      tel.textContent = '📊 ' + viewYear + '年' + viewMonth + '月';
+      nb.classList.add('show');
+      nl.textContent = viewYear + '年' + viewMonth + '月';
+      he.textContent = '💡 底部可左右拖动查看整月。每天一个数据点。';
+    } else {
+      tel.textContent = '📊 ' + viewYear + '年（半月聚合）';
+      nb.classList.add('show');
+      nl.textContent = viewYear + '年';
+      he.textContent = '💡 每月取上下半月各一个均值点，共24点，看全年趋势。';
+    }
+  }
+
+  function renderChart(data, mode, year, month) {
+    mode = mode || viewMode; year = year || viewYear; month = month || viewMonth;
+    var wrapper = document.getElementById('chart-wrapper');
+    var canvas = document.getElementById('chart-canvas');
+    var ctx = canvas.getContext('2d');
+
+    if (typeof Chart === 'undefined') {
+      wrapper.classList.add('no-data');
+      return;
+    }
+
+    var cfg;
+    if (mode === 'month') { cfg = prepareMonthData(data, year, month); }
+    else if (mode === 'year') { cfg = prepareYearData(data, year); }
+    else { cfg = prepareDayData(data); }
+    var labels = cfg.labels;
+    var focusData = cfg.focusData;
+    var sleepData = cfg.sleepData;
+    var lostFlags = cfg.lostFlags;
+    var excludeFlags = cfg.excludeFlags || [];
+    var dateRefs = cfg.dateStrs || [];
+
+    // 月视图画布加宽以支持横向滚动
+    if (mode === 'month' && labels.length > 14) {
+      wrapper.style.width = (labels.length * 24) + 'px';
+    } else {
+      wrapper.style.width = '';
+    }
+
+    var hasAnyData = focusData.some(function(v) { return v != null; }) ||
+                     sleepData.some(function(v) { return v != null; });
+
+    // 动态计算睡眠 Y 轴范围
+    var sleepVals = sleepData.filter(function(v) { return v != null; });
+    var sleepMin = 21, sleepMax = 27;
+    if (sleepVals.length > 0) {
+      var rawMin = Math.min.apply(null, sleepVals);
+      var rawMax = Math.max.apply(null, sleepVals);
+      sleepMin = Math.max(18, Math.floor(rawMin) - 1);
+      sleepMax = Math.min(30, Math.ceil(rawMax) + 1);
+      if (sleepMax - sleepMin < 3) {
+        var mid = (sleepMin + sleepMax) / 2;
+        sleepMin = Math.max(18, Math.floor(mid - 1.5));
+        sleepMax = Math.min(30, Math.ceil(mid + 1.5));
+      }
+    }
+
+    if (chart) {
+      chart.destroy();
+      chart = null;
+    }
+
+    if (!hasAnyData) {
+      wrapper.classList.add('no-data');
+      return;
+    }
+
+    wrapper.classList.remove('no-data');
+
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: '专注时长',
+            data: focusData,
+            borderColor: '#2196F3',
+            backgroundColor: 'rgba(33,150,243,0.06)',
+            tension: 0.3,
+            pointRadius: function(ctx) {
+              var idx = ctx.dataIndex;
+              if (excludeFlags[idx]) return 4;
+              return lostFlags[idx] ? 7 : 3;
+            },
+            pointHoverRadius: function(ctx) {
+              var idx = ctx.dataIndex;
+              if (excludeFlags[idx]) return 5;
+              return lostFlags[idx] ? 9 : 6;
+            },
+            pointBackgroundColor: function(ctx) {
+              var idx = ctx.dataIndex;
+              if (excludeFlags[idx]) return '#ccc';
+              var val = focusData[idx];
+              if (val == null) return 'transparent';
+              return lostFlags[idx] ? '#F44336' : '#2196F3';
+            },
+            pointBorderColor: function(ctx) {
+              var idx = ctx.dataIndex;
+              if (excludeFlags[idx]) return '#999';
+              return lostFlags[idx] ? '#fff' : '#2196F3';
+            },
+            pointBorderWidth: function(ctx) {
+              var idx = ctx.dataIndex;
+              if (excludeFlags[idx]) return 1;
+              return lostFlags[idx] ? 2 : 0;
+            },
+            spanGaps: false,
+            borderWidth: 2,
+            yAxisID: 'y'
+          },
+          {
+            label: '入睡时间',
+            data: sleepData,
+            borderColor: '#9C27B0',
+            backgroundColor: 'rgba(156,39,176,0.04)',
+            tension: 0.3,
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            pointBackgroundColor: function(ctx) {
+              var idx = ctx.dataIndex;
+              return excludeFlags[idx] ? '#ccc' : '#9C27B0';
+            },
+            spanGaps: false,
+            borderWidth: 2,
+            borderDash: [5, 3],
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+        scales: {
+          y: {
+            type: 'linear',
+            position: 'left',
+            min: 0,
+            suggestedMax: 300,
+            title: {
+              display: true,
+              text: '专注时长（分钟）',
+              font: { size: 11 }
+            },
+            ticks: {
+              stepSize: 60,
+              font: { size: 10 },
+              callback: function(v) { return v + ' min'; }
+            },
+            grid: { color: '#f0f0f0' }
+          },
+          y1: {
+            type: 'linear',
+            position: 'right',
+            reverse: true,
+            min: sleepMin,
+            max: sleepMax,
+            title: {
+              display: true,
+              text: '入睡时间（越上越早）',
+              font: { size: 11 },
+              color: '#9C27B0'
+            },
+            ticks: {
+              stepSize: 1,
+              font: { size: 10 },
+              color: '#9C27B0',
+              callback: function(v) {
+                var h = Math.floor(v) % 24;
+                return h + ':00';
+              }
+            },
+            grid: { display: false }
+          },
+          x: {
+            title: {
+              display: true,
+              text: '日期',
+              font: { size: 11 }
+            },
+            ticks: {
+              font: { size: 10 },
+              maxRotation: 45
+            },
+            grid: { display: false }
+          }
+        },
+        plugins: {
+          tooltip: {
+            callbacks: {
+              title: function(items) {
+                return items[0].label;
+              },
+              label: function(item) {
+                if (item.datasetIndex === 0) {
+                  var idx = item.dataIndex;
+                  var fv = focusData[idx];
+                  var lost = lostFlags[idx];
+                  var text = '专注: ' + (fv != null ? fv + ' 分钟' : '无数据');
+                  if (lost) {
+                    var rec = dateRefs.length > idx ? findRecord(data, dateRefs[idx]) : null;
+                    var t = rec && rec.trigger ? ' → ' + rec.trigger : '';
+                    text += '  ⚠️ 情绪失控' + t;
+                  }
+                  return text;
+                }
+                if (item.datasetIndex === 1) {
+                  var sv = sleepData[item.dataIndex];
+                  return '入睡: ' + decimalToSleep(sv);
+                }
+                return '';
+              }
+            }
+          },
+          legend: { display: false }
+        }
+      }
+    });
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     模块 6 · 趋势检测
+     ═══════════════════════════════════════════════════════════════ */
+
+  function detectFocusTrend(records) {
+    var withFocus = [];
+    for (var i = 0; i < records.length; i++) {
+      if (records[i].exclude_focus === 1) continue;
+      if (records[i].focus_min != null) withFocus.push(records[i].focus_min);
+    }
+    if (withFocus.length < 3) return null;
+    var falling = true;
+    var rising = true;
+    for (var j = 1; j < withFocus.length; j++) {
+      if (withFocus[j] >= withFocus[j - 1]) falling = false;
+      if (withFocus[j] <= withFocus[j - 1]) rising = false;
+    }
+    if (falling) return 'falling';
+    if (rising) return 'rising';
+    return 'mixed';
+  }
+
+  function detectSleepPattern(records) {
+    var withSleep = [];
+    for (var i = 0; i < records.length; i++) {
+      if (records[i].emergency_late === 1) continue;
+      if (records[i].sleep_time) withSleep.push(records[i]);
+    }
+    if (withSleep.length < 3) return null;
+    var allLate = true;
+    var allEarly = true;
+    for (var j = 0; j < withSleep.length; j++) {
+      var dec = sleepToDecimal(withSleep[j].sleep_time);
+      if (dec == null) return null;
+      if (dec < 25.0) allLate = false;
+      if (dec > 23.5) allEarly = false;
+    }
+    if (allLate) return 'consistently_late';
+    if (allEarly) return 'consistently_early';
+    var decs = [];
+    for (var k = 0; k < withSleep.length; k++) {
+      decs.push(sleepToDecimal(withSleep[k].sleep_time));
+    }
+    var improving = true;
+    for (var m = 1; m < decs.length; m++) {
+      if (decs[m] == null || decs[m - 1] == null) { improving = false; break; }
+      if (decs[m] >= decs[m - 1]) { improving = false; break; }
+    }
+    if (improving) return 'improving';
+    return 'mixed';
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     模块 7 · 系统反馈引擎（单日 + 趋势 + 警告）
+     ═══════════════════════════════════════════════════════════════ */
+
+  function generateFeedback(sleepTime, focusMin, lostControl, trigger, allData, currentDate) {
+    var sleepDec = sleepToDecimal(sleepTime);
+    var lines = [];
+
+    if (lostControl && focusMin != null && focusMin < 60) {
+      lines.push('🔴 情绪波动可能消耗了认知资源。今天优先恢复，不强求产出。');
+    } else if (lostControl && trigger) {
+      lines.push('🔴 记录了触发「' + escapeHTML(trigger) + '」。回溯这个模式：它以前出现过吗？');
+    } else if (lostControl) {
+      lines.push('🔴 出现了情绪失控。试着一句话描述原因，下次就能追踪模式。');
+    } else if (sleepDec != null && sleepDec >= 25.0 && focusMin != null && focusMin < 60) {
+      lines.push('🟠 睡眠锚点偏移（' + decimalToSleep(sleepDec) + '入睡），专注产出很低。优先把锚点往前调。');
+    } else if (sleepDec != null && sleepDec <= 23.0 && focusMin != null && focusMin >= 180) {
+      lines.push('✅ 睡眠锚点稳固，专注产出充足。流入端运转良好。');
+    } else if (focusMin != null && focusMin >= 180) {
+      if (sleepDec != null && sleepDec >= 25.0) {
+        lines.push('专注' + focusMin + '分钟不错，但凌晨' + decimalToSleep(sleepDec) + '才入睡。这种高产可能建立在透支上——锚点偏晚最终会消耗存量。');
+      } else if (sleepDec != null && sleepDec <= 23.5) {
+        lines.push('✅ 专注' + focusMin + '分钟，高产且睡眠锚点良好。');
+      } else {
+        lines.push('专注' + focusMin + '分钟，产出不错。留意睡眠是否跟上。');
+      }
+    } else if (sleepDec != null && sleepDec >= 25.0) {
+      lines.push('入睡偏晚（' + decimalToSleep(sleepDec) + '）。锚点是基础调节器，松动后其他存量也会波动。');
+    } else if (focusMin != null && focusMin > 0) {
+      lines.push('专注' + focusMin + '分钟。稳定记录就是最好的观测。');
+    }
+
+    var recent = getRecentRecords(allData, currentDate, 5);
+    var focusTrend = detectFocusTrend(recent);
+    var sleepPattern = detectSleepPattern(recent);
+    var trendLines = [];
+
+    if (sleepPattern === 'consistently_late' && focusTrend === 'falling') {
+      trendLines.push('📉 <b>锚点偏移 + 专注下降</b>：最近' + recent.length + '天睡眠都在凌晨1点后，专注呈下降趋势。这是《系统之美》里的典型反馈回路：锚点偏移 → 流入减少 → 存量下降。优先把入睡往前调30分钟。');
+    } else if (sleepPattern === 'consistently_late' && focusTrend === 'mixed') {
+      trendLines.push('🟡 最近' + recent.length + '天睡眠锚点都偏晚。连续偏移会形成惯性，果断打破。');
+    } else if (sleepPattern === 'consistently_late') {
+      trendLines.push('🟡 睡眠锚点连续偏晚。虽然专注还能撑住，但这是高功耗运行——存量迟早会响应。');
+    } else if (focusTrend === 'falling') {
+      trendLines.push('专注产出呈下降趋势。睡眠数据不足以解释，检查是否有其他扰动（情绪、压力、身体状态）。');
+    } else if (sleepPattern === 'improving') {
+      trendLines.push('🌱 睡眠锚点正在往前提，方向对了。坚持几天看看系统响应。');
+    }
+
+    if (trendLines.length > 0) {
+      if (lines.length > 0) lines.push('');
+      for (var t = 0; t < trendLines.length; t++) {
+        lines.push(trendLines[t]);
+      }
+    }
+
+    return lines.join('<br>');
+  }
+
+  function escapeHTML(str) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     模块 8 · 系统警告（多级别）
+     ═══════════════════════════════════════════════════════════════ */
+
+  function checkSystemWarnings(data) {
+    if (data.length < 3) return null;
+    var recent5 = data.slice(-5).filter(function(r) { return r.sleep_time; });
+    var last3 = data.slice(-3);
+
+    if (last3.length >= 3 && last3.every(function(r) { return r.focus_min != null && r.focus_min < 30; })) {
+      var dates = last3.map(function(r) { return new Date(r.date + 'T00:00:00'); });
+      var consecutive = true;
+      for (var i = 1; i < dates.length; i++) {
+        var diff = (dates[i] - dates[i - 1]) / (1000 * 60 * 60 * 24);
+        if (Math.abs(Math.round(diff) - 1) > 0.1) { consecutive = false; break; }
+      }
+      if (consecutive) {
+        return { level: 'severe', icon: '🔴', msg: '连续3天专注<30分钟。睡眠锚点可能严重偏移，优先恢复锚点再谈产出。' };
+      }
+    }
+
+    if (recent5.length >= 3) {
+      var allLate = recent5.every(function(r) {
+        var dec = sleepToDecimal(r.sleep_time);
+        return dec != null && dec >= 25.0;
+      });
+      if (allLate) {
+        var fvals = [];
+        for (var j = 0; j < recent5.length; j++) {
+          if (recent5[j].focus_min != null) fvals.push(recent5[j].focus_min);
+        }
+        if (fvals.length >= 3) {
+          var declining = true;
+          for (var k = 1; k < fvals.length; k++) {
+            if (fvals[k] >= fvals[k - 1]) { declining = false; break; }
+          }
+          if (declining) {
+            return { level: 'severe', icon: '🔴', msg: '锚点持续偏移 + 专注产出连续下降。系统正发出清晰的警告信号。试试把入睡时间往前调30分钟。' };
+          }
+        }
+        return { level: 'caution', icon: '🟠', msg: '睡眠锚点连续偏晚。虽然专注还没崩，但这种模式不可持续。' };
+      }
+    }
+
+    return null;
+  }
+
+  function renderSystemWarning(data) {
+    var el = document.getElementById('sys-warning');
+    var iconEl = document.getElementById('sys-warning-icon');
+    var textEl = document.getElementById('sys-warning-text');
+    var warning = checkSystemWarnings(data);
+    el.classList.remove('show', 'severe', 'caution', 'info');
+    if (warning) {
+      el.classList.add('show', warning.level);
+      iconEl.textContent = warning.icon;
+      textEl.textContent = warning.msg;
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     模块 9 · 双期对比 + 变化感知建议
+     ═══════════════════════════════════════════════════════════════ */
+
+  /** 把数据切成"近n条"和"前n条"两个时期 */
+  function splitPeriods(data, n) {
+    if (data.length < n) return { recent: data, previous: [], hasCompare: false };
+    var recent = data.slice(-n);
+    var previous = data.slice(-(n * 2), -n);
+    return { recent: recent, previous: previous, hasCompare: previous.length >= n };
+  }
+
+  /** 计算一组记录的统计值 */
+  function calcPeriodStats(records, skipExcluded) {
+    if (records.length === 0) return null;
+    var totalFocus = 0, focusCount = 0;
+    var totalSleepDec = 0, sleepCount = 0;
+    var lostCount = 0;
+    var excludedF = 0, excludedS = 0;
+    for (var i = 0; i < records.length; i++) {
+      var r = records[i];
+      if (skipExcluded && r.exclude_focus === 1) { excludedF++; continue; }
+      if (r.focus_min != null) { totalFocus += r.focus_min; focusCount++; }
+      if (skipExcluded && r.emergency_late === 1) { excludedS++; continue; }
+      if (r.sleep_time) {
+        var dec = sleepToDecimal(r.sleep_time);
+        if (dec != null) { totalSleepDec += dec; sleepCount++; }
+      }
+      if (r.lost_control === 1) lostCount++;
+    }
+    return {
+      count: records.length,
+      avgFocus: focusCount > 0 ? Math.round(totalFocus / focusCount) : null,
+      avgSleepDec: sleepCount > 0 ? totalSleepDec / sleepCount : null,
+      lostCount: lostCount,
+      excludedFocusCount: excludedF,
+      excludedSleepCount: excludedS
+    };
+  }
+
+  /** 格式化平均睡眠十进制 → "HH:MM" */
+  function formatAvgSleep(avgDec) {
+    if (avgDec == null) return '—';
+    var totalMin = Math.round(avgDec * 60);
+    var h = Math.floor(totalMin / 60) % 24;
+    var m = totalMin % 60;
+    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+  }
+
+  /** 变化感知建议引擎（数据驱动版） */
+  function generatePrecisionAdvice(recentStats, prevStats, hasCompare) {
+    var advice = [];
+
+    // ── 提取当前水平 ──
+    var sleepLate  = recentStats.avgSleepDec != null && recentStats.avgSleepDec >= 25.0;
+    var sleepEarly = recentStats.avgSleepDec != null && recentStats.avgSleepDec <= 23.5;
+    var focusCritical = recentStats.avgFocus != null && recentStats.avgFocus < 30;
+    var focusLow  = recentStats.avgFocus != null && recentStats.avgFocus < 60;
+    var focusHigh = recentStats.avgFocus != null && recentStats.avgFocus >= 180;
+    var curSleepStr = recentStats.avgSleepDec != null ? formatAvgSleep(recentStats.avgSleepDec) : '未知';
+    var curFocusStr = recentStats.avgFocus != null ? String(recentStats.avgFocus) : '未知';
+
+    // ── 提取变化量 ──
+    var focusChange = null, focusChangePct = null;
+    var sleepChangeMin = null;
+    var prevFocusStr = '—', prevSleepStr = '—';
+    if (hasCompare && prevStats) {
+      if (recentStats.avgFocus != null && prevStats.avgFocus != null && prevStats.avgFocus > 0) {
+        focusChange = recentStats.avgFocus - prevStats.avgFocus;
+        focusChangePct = Math.round(focusChange / prevStats.avgFocus * 100);
+        prevFocusStr = String(prevStats.avgFocus);
+      }
+      if (recentStats.avgSleepDec != null && prevStats.avgSleepDec != null) {
+        sleepChangeMin = Math.round((recentStats.avgSleepDec - prevStats.avgSleepDec) * 60);
+        prevSleepStr = formatAvgSleep(prevStats.avgSleepDec);
+      }
+    }
+
+    // ═══════════════════════════════════════════════
+    // 规则 0：数据不足（无对比期）
+    // ═══════════════════════════════════════════════
+    if (!hasCompare || !prevStats) {
+      if (focusCritical) {
+        advice.push('近' + recentStats.count + '天专注均' + curFocusStr + 'min——严重偏低。先别问为什么：今晚' + (suggestBedtime(recentStats.avgSleepDec) || '23:00') + '前关灯。睡够了再看数据。');
+        return advice;
+      }
+      if (sleepLate && focusHigh) {
+        advice.push('专注均' + curFocusStr + 'min不错。但三次记录全部凌晨' + curSleepStr + '后才睡——高产出正建立在透支上。还需要3天数据才能对比趋势。在此之前做一件事：今晚' + suggestBedtime(recentStats.avgSleepDec) + '前睡。');
+      } else if (sleepLate) {
+        advice.push('只有' + recentStats.count + '天数据，趋势对比还要再积累。但现在就能看到一个规律：每次入睡都在凌晨' + curSleepStr + '后。在数据够对比之前，先动锚点——今晚' + suggestBedtime(recentStats.avgSleepDec) + '前关灯。3天后系统就能告诉你变化量。');
+      } else if (sleepEarly && focusHigh) {
+        advice.push('锚点稳固（均' + curSleepStr + '入睡），专注充足（均' + curFocusStr + 'min）。再积累3天数据就能看到趋势对比。保持方向。');
+      } else if (focusLow) {
+        advice.push('专注均' + curFocusStr + 'min偏低。只有' + recentStats.count + '天数据，先排查：睡眠够吗？情绪有扰动吗？找到那个最明显的变量，然后动它。');
+      } else {
+        advice.push('只有' + recentStats.count + '天数据，系统还在学你的基线。再记3天就有对比分析。这3天里优先稳定锚点：每晚固定时间关灯。');
+      }
+      if (sleepLate) {
+        advice.push('一件事：锚点。你现在凌晨' + curSleepStr + '睡。把它往前挪到' + suggestBedtime(recentStats.avgSleepDec) + '，连续3天。这是当前回报率最高的动作。');
+      }
+      return advice;
+    }
+
+    // ═══════════════════════════════════════════════
+    // 规则 1：专注崩溃
+    // ═══════════════════════════════════════════════
+    if (focusCritical) {
+      advice.push('近3天专注均' + curFocusStr + 'min——系统触底。锚点' + curSleepStr + '。不需要更多数据了：今晚' + (suggestBedtime(recentStats.avgSleepDec) || '23:00') + '前睡，连续3天。睡眠是当前唯一值得关注的变量。');
+      return advice;
+    }
+
+    // ═══════════════════════════════════════════════
+    // 规则 2：专注快速下降 + 锚点偏晚 → 锚点偏移在消耗存量
+    // ═══════════════════════════════════════════════
+    if (focusChangePct != null && focusChangePct <= -15 && sleepLate) {
+      advice.push('专注从' + prevFocusStr + '跌到' + curFocusStr + 'min，降了' + Math.abs(focusChangePct) + '%。锚点纹丝不动——两期都卡在凌晨' + curSleepStr + '。这不是波动，是趋势。');
+      advice.push('👉 今晚只做一件事：' + suggestBedtime(recentStats.avgSleepDec) + '前关灯。连续3天锚点提前到' + suggestBedtime(recentStats.avgSleepDec) + '，专注大概率回到' + prevFocusStr + '以上。系统延迟约3-5天，别在第2天放弃。');
+    }
+
+    // ═══════════════════════════════════════════════
+    // 规则 3：专注温和下降 + 锚点偏晚
+    // ═══════════════════════════════════════════════
+    else if (focusChangePct != null && focusChangePct < 0 && sleepLate) {
+      advice.push('专注降了' + Math.abs(focusChangePct) + '%（' + prevFocusStr + '→' + curFocusStr + 'min），幅度不大但方向不对。锚点两期都在凌晨' + curSleepStr + '——这个变量没有变，专注却在掉。');
+      advice.push('👉 现在修的回报率最高：只需把入睡从' + curSleepStr + '提前到' + suggestBedtime(recentStats.avgSleepDec) + '。幅度不大，但方向对。连续3天，看下一次对比数据。');
+    }
+
+    // ═══════════════════════════════════════════════
+    // 规则 4：专注下降但锚点不差 → 排查其他扰动
+    // ═══════════════════════════════════════════════
+    else if (focusChangePct != null && focusChangePct < 0 && !sleepLate) {
+      advice.push('专注降了' + Math.abs(focusChangePct) + '%（' + prevFocusStr + '→' + curFocusStr + 'min），但锚点不在凌晨1点后，睡眠不是主因。');
+      advice.push('回溯这三天的情绪开关、身体状态、外部压力——有哪个变量变了？找到它，记下来。系统只能分析你记录了的东西。');
+    }
+
+    // ═══════════════════════════════════════════════
+    // 规则 5：锚点改善 + 专注回升 → 正向循环
+    // ═══════════════════════════════════════════════
+    else if (sleepChangeMin != null && sleepChangeMin <= -30 && focusChangePct != null && focusChangePct > 0) {
+      advice.push('锚点从' + prevSleepStr + '提前到' + curSleepStr + '（早了' + Math.abs(sleepChangeMin) + '分钟），专注回升了' + focusChangePct + '%（' + prevFocusStr + '→' + curFocusStr + 'min）。复利在你这边了。');
+      advice.push('现在的风险不是退步——是飘。一次凌晨1点后睡就能打断积累了两周的惯性。保持锚点在' + curSleepStr + '前。');
+    }
+
+    // ═══════════════════════════════════════════════
+    // 规则 6：锚点改善 + 专注暂未响应
+    // ═══════════════════════════════════════════════
+    else if (sleepChangeMin != null && sleepChangeMin <= -30 && (focusChangePct == null || focusChangePct <= 0)) {
+      advice.push('锚点提前了' + Math.abs(sleepChangeMin) + '分钟（' + prevSleepStr + '→' + curSleepStr + '），方向对。专注暂时' + (focusChangePct != null && focusChangePct < 0 ? '还在降' : '没变化') + '——正常。');
+      advice.push('你的系统从锚点改善到专注响应，延迟约3-5天。大多数人会在第3天放弃。别做大多数人。再等2-3天看数据转弯。');
+    }
+
+    // ═══════════════════════════════════════════════
+    // 规则 7：锚点恶化
+    // ═══════════════════════════════════════════════
+    else if (sleepChangeMin != null && sleepChangeMin >= 30) {
+      advice.push('锚点在恶化：从' + prevSleepStr + '推迟到' + curSleepStr + '（晚了' + sleepChangeMin + '分钟）。如果不拉回来，专注存量会在接下来3-5天响应。');
+      advice.push('👉 今晚直接回到' + suggestBedtime(prevStats.avgSleepDec) + '前。不要渐进——一次回到基准线。');
+    }
+
+    // ═══════════════════════════════════════════════
+    // 规则 8：锚点偏晚 + 专注高产（高功耗补偿）
+    // ═══════════════════════════════════════════════
+    else if (sleepLate && focusHigh) {
+      advice.push('专注均' + curFocusStr + 'min，产出不错。但锚点两期都在凌晨' + curSleepStr + '——你是靠意志力在填补睡眠缺口。');
+      advice.push('二十岁能这么扛。但红利会逐年递减。趁现在还没出现下降趋势，把锚点从' + curSleepStr + '提前到' + suggestBedtime(recentStats.avgSleepDec) + '。主动修比被动补代价小得多。');
+    }
+
+    // ═══════════════════════════════════════════════
+    // 规则 9：锚点稳固 + 专注充足
+    // ═══════════════════════════════════════════════
+    else if (sleepEarly && focusHigh) {
+      advice.push('两期对比稳定：锚点' + curSleepStr + '前入睡，专注均' + curFocusStr + 'min。系统运转在健康区间。');
+      advice.push('保持比到达更难。连续保持7天，系统会确认这不是运气——是结构。');
+    }
+
+    // ═══════════════════════════════════════════════
+    // 规则 10：专注持续偏低
+    // ═══════════════════════════════════════════════
+    else if (focusLow) {
+      advice.push('两期专注都在' + curFocusStr + 'min以下。不是短期波动。');
+      if (sleepLate) {
+        advice.push('锚点凌晨' + curSleepStr + '——这是最可能的主因。先把锚点修到' + suggestBedtime(recentStats.avgSleepDec) + '前，连续5天，再看专注是否响应。');
+      } else {
+        advice.push('锚点数据不差。排查：有没有未记录的情绪失控？身体状态？外部压力？找到你还没记录的那个变量。');
+      }
+    }
+
+    // ═══════════════════════════════════════════════
+    // 兜底
+    // ═══════════════════════════════════════════════
+    else {
+      if (sleepLate) {
+        advice.push('锚点两期都在凌晨' + curSleepStr + '。专注暂未明显下降，但惯性不站在你这边。趁数据还没变差，把锚点拉到' + suggestBedtime(recentStats.avgSleepDec) + '前。');
+      } else {
+        advice.push('系统暂未检测到明显趋势。继续稳定记录——数据多了，规律自己会浮出来。');
+      }
+    }
+
+    // 系统级：排除频率检测
+    if (recentStats.excludedFocusCount >= 2) {
+      advice.push('⚠️ 近' + recentStats.count + '天有' + recentStats.excludedFocusCount + '天专注被排除——习惯被打断的频率偏高。检查：是临时突发事件还是日程边界需要调整？');
+    }
+    if (recentStats.excludedFocusCount >= 1 && recentStats.excludedSleepCount >= 1) {
+      advice.push('💡 同一时期专注和睡眠都有排除标记——可能有共同的外部根因。');
+    }
+
+    return advice;
+  }
+
+  /** 根据当前入睡时间给出建议入睡时间（往前推30-60分钟，不超过21:00）。无数据时返回 null */
+  function suggestBedtime(avgSleepDec) {
+    if (avgSleepDec == null) return null;
+    var target = avgSleepDec - 0.5;
+    if (target < 21.0) target = 21.0;
+    var h = Math.floor(target);
+    if (h >= 24) h = h - 24;
+    var m = Math.round((target - Math.floor(target)) * 60);
+    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+  }
+
+  /** 直言建议引擎（老派智者风格） */
+  function generateStraightTalk(recentStats, prevStats, hasCompare, data) {
+    var lines = [];
+    var sleepLate = recentStats.avgSleepDec != null && recentStats.avgSleepDec >= 25.0;
+    var sleepEarly = recentStats.avgSleepDec != null && recentStats.avgSleepDec <= 23.5;
+    var focusHigh = recentStats.avgFocus != null && recentStats.avgFocus >= 180;
+    var focusCritical = recentStats.avgFocus != null && recentStats.avgFocus < 30;
+    var focusLow = recentStats.avgFocus != null && recentStats.avgFocus < 60;
+
+    var focusChange = null, focusChangePct = null;
+    var sleepChangeMin = null;
+    if (hasCompare && prevStats) {
+      if (recentStats.avgFocus != null && prevStats.avgFocus != null && prevStats.avgFocus > 0) {
+        focusChange = recentStats.avgFocus - prevStats.avgFocus;
+        focusChangePct = Math.round(focusChange / prevStats.avgFocus * 100);
+      }
+      if (recentStats.avgSleepDec != null && prevStats.avgSleepDec != null) {
+        sleepChangeMin = Math.round((recentStats.avgSleepDec - prevStats.avgSleepDec) * 60);
+      }
+    }
+
+    // 数据不足
+    if (data.length < 3) {
+      lines.push('先记满两周。没数据别谈结论。');
+      return lines;
+    }
+
+    // 专注崩溃
+    if (focusCritical) {
+      lines.push('别分析了。先去睡觉。睡不够的大脑会把烂决定当成好主意。');
+      return lines;
+    }
+
+    // 锚点偏晚 + 专注快速下降
+    if (focusChangePct != null && focusChangePct <= -15 && sleepLate) {
+      lines.push('你每天凌晨1点睡，然后奇怪专注在下降。这不是谜——这是算术。');
+      lines.push('每天少睡一小时，一周就是七小时。复利正在跟你作对。');
+    }
+    // 锚点偏晚 + 专注温和下降
+    else if (focusChangePct != null && focusChangePct < 0 && sleepLate) {
+      lines.push('专注在下滑，锚点纹丝不动。重复同样的行为期待不同结果——你知道这叫什么。');
+    }
+    // 锚点偏晚 + 专注高产（悖论）
+    else if (sleepLate && focusHigh) {
+      lines.push('专注高不代表系统健康。二十岁的身体能透支，三十岁开始还。');
+      lines.push('别把意志力当战略。');
+    }
+    // 锚点改善 + 专注回升
+    else if (sleepChangeMin != null && sleepChangeMin <= -30 && focusChangePct != null && focusChangePct > 0) {
+      lines.push('方向对了。复利开始往你这边滚了。无聊的纪律比刺激的灵感值钱一百倍。');
+    }
+    // 锚点改善 + 专注暂未响应（系统延迟）
+    else if (sleepChangeMin != null && sleepChangeMin <= -30 && (focusChangePct == null || focusChangePct <= 0)) {
+      lines.push('系统有惯性。今天早睡不会明天就变天才。给它两周。');
+      lines.push('多数人死在复利曲线的前半段。别做多数人。');
+    }
+    // 锚点恶化
+    else if (sleepChangeMin != null && sleepChangeMin >= 30) {
+      lines.push('锚点在恶化。你不需要更聪明的分析——需要更早的上床时间。简单不等于容易。');
+    }
+    // 专注下降但锚点不差
+    else if (focusChangePct != null && focusChangePct < 0 && !sleepLate) {
+      lines.push('专注在降，但睡眠不是主因。有什么东西在消耗你——找到它，避开它。');
+    }
+    // 锚点稳固 + 专注充足
+    else if (sleepEarly && focusHigh && (focusChangePct == null || focusChangePct >= 0)) {
+      lines.push('系统运转正常。最难的从来不是到达——是留在这里。');
+      lines.push('每天比昨天聪明一点点。复利会做完剩下的。');
+    }
+    // 锚点偏晚（通用）
+    else if (sleepLate) {
+      lines.push('你很清楚问题在哪。凌晨1点睡然后期待白天专注——这不叫系统，这叫希望。');
+      lines.push('早睡半小时。试两周。数据会替你说话。');
+    }
+    // 专注偏低
+    else if (focusLow) {
+      lines.push('专注低的时候，少做决定。先修复睡眠和身体，产出是后面的自然结果。');
+    }
+    // 默认
+    else {
+      lines.push('继续记录。避免愚蠢比追求聪明重要得多。在作息这件事上，愚蠢就是熬夜。');
+    }
+
+    return lines;
+  }
+
+  /** 渲染系统洞察卡片 */
+  function renderInsight(data) {
+    var container = document.getElementById('insight-content');
+    if (data.length < 3) {
+      container.innerHTML = '<div class="insight-empty">至少需要3天数据才能生成洞察<br>继续记录，系统在学习你的模式 🔍</div>';
+      return;
+    }
+
+    var periods = splitPeriods(data, 3);
+    var recentStats = calcPeriodStats(periods.recent);
+    var prevStats = periods.hasCompare ? calcPeriodStats(periods.previous) : null;
+    var cleanRecent = calcPeriodStats(periods.recent, true);
+    var cleanPrev = periods.hasCompare ? calcPeriodStats(periods.previous, true) : null;
+    var html = '';
+
+    // ── 顶部：直言建议 ──
+    var stLines = generateStraightTalk(recentStats, prevStats, periods.hasCompare, data);
+    if (stLines && stLines.length > 0) {
+      html += '<div class="straight-talk">';
+      for (var si = 0; si < stLines.length; si++) {
+        html += '<div class="st-line">' + stLines[si] + '</div>';
+      }
+      html += '</div>';
+    }
+
+    // ── 近3天 ──
+    html += '<div style="font-size:0.85rem;margin-bottom:3px;">';
+    html += '📅 <b>近3天</b>：🌙' + (recentStats.avgSleepDec != null ? formatAvgSleep(recentStats.avgSleepDec) : '—');
+    html += ' · 🎯' + (recentStats.avgFocus != null ? recentStats.avgFocus + 'min' : '—');
+    if (recentStats.lostCount > 0) html += ' · 💢' + recentStats.lostCount + '次';
+    html += '</div>';
+
+    // ── 前3天 + 变化标记 ──
+    if (prevStats) {
+      html += '<div style="font-size:0.85rem;margin-bottom:6px;">';
+      html += '📅 <b>前3天</b>：🌙' + (prevStats.avgSleepDec != null ? formatAvgSleep(prevStats.avgSleepDec) : '—');
+      html += ' · 🎯' + (prevStats.avgFocus != null ? prevStats.avgFocus + 'min' : '—');
+      if (prevStats.lostCount > 0) html += ' · 💢' + prevStats.lostCount + '次';
+
+      // 专注变化箭头
+      if (recentStats.avgFocus != null && prevStats.avgFocus != null && prevStats.avgFocus > 0) {
+        var fc = recentStats.avgFocus - prevStats.avgFocus;
+        var fcp = Math.round(fc / prevStats.avgFocus * 100);
+        var fColor = fc < 0 ? '#E65100' : (fc > 0 ? '#2E7D32' : '#999');
+        var fArrow = fc < 0 ? '↓' : (fc > 0 ? '↑' : '→');
+        html += '&nbsp;<span style="font-size:0.8rem;color:' + fColor + ';">专注' + fArrow + Math.abs(fc) + 'min（' + (fcp >= 0 ? '+' : '') + fcp + '%）</span>';
+      }
+
+      // 睡眠变化标记
+      if (recentStats.avgSleepDec != null && prevStats.avgSleepDec != null) {
+        var sc = Math.round((recentStats.avgSleepDec - prevStats.avgSleepDec) * 60);
+        if (Math.abs(sc) >= 15) {
+          var sLabel = sc > 0 ? '推迟' : '提前';
+          var sColor = sc > 0 ? '#E65100' : '#2E7D32';
+          html += '&nbsp;<span style="font-size:0.8rem;color:' + sColor + ';">睡眠' + sLabel + Math.abs(sc) + 'min</span>';
+        }
+      }
+      html += '</div>';
+    }
+
+    // ── 全量速览行 ──
+    var allF = 0, allFN = 0, allS = 0, allSN = 0, allL = 0;
+    for (var i = 0; i < data.length; i++) {
+      var r = data[i];
+      if (r.focus_min != null) { allF += r.focus_min; allFN++; }
+      if (r.sleep_time) { var d = sleepToDecimal(r.sleep_time); if (d != null) { allS += d; allSN++; } }
+      if (r.lost_control === 1) allL++;
+    }
+    html += '<div style="font-size:0.75rem;color:#bbb;margin-bottom:10px;">';
+    html += '全部' + data.length + '天 · 均🌙' + (allSN > 0 ? formatAvgSleep(allS / allSN) : '—');
+    html += ' · 均🎯' + (allFN > 0 ? Math.round(allF / allFN) + 'min' : '—');
+    html += ' · 累计💢' + allL + '次';
+    html += '</div>';
+
+    if (recentStats.excludedFocusCount > 0 || recentStats.excludedSleepCount > 0) {
+      html += '<div style="font-size:0.75rem;color:#bbb;margin-bottom:4px">';
+      var parts = [];
+      if (recentStats.excludedFocusCount > 0) parts.push(recentStats.excludedFocusCount + '天专注被排除');
+      if (recentStats.excludedSleepCount > 0) parts.push(recentStats.excludedSleepCount + '天睡眠被排除');
+      html += '🔕 ' + parts.join('，') + '，不计入趋势分析';
+      html += '</div>';
+    }
+
+    // ── 建议 ──
+    var advice = generatePrecisionAdvice(cleanRecent, cleanPrev, periods.hasCompare);
+    if (advice && advice.length > 0) {
+      html += '<div class="advice-block">';
+      html += '<div class="advice-title">🧠 系统建议</div>';
+      for (var j = 0; j < advice.length; j++) {
+        html += '<div style="margin-bottom:6px;">' + advice[j] + '</div>';
+      }
+      html += '</div>';
+    }
+
+    container.innerHTML = html;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     模块 10 · UI 状态 & 输入框操作
+     ═══════════════════════════════════════════════════════════════ */
+
+  function setUIState(_data) {
+    var data = _data !== undefined ? _data : loadData();
+    var selDate = getSelectedDate();
+    var record = findRecord(data, selDate);
+    var btn = document.getElementById('submit-btn');
+    var status = document.getElementById('today-status');
+
+    if (record) {
+      btn.textContent = '✏️ 更新该日记录';
+      status.style.display = 'block';
+      status.textContent = '✅ ' + formatMD(selDate) + ' 已观测';
+    } else {
+      btn.textContent = '📝 记录该日存量';
+      status.style.display = 'none';
+      document.getElementById('feedback-text').textContent = '';
+      document.getElementById('feedback-text').classList.remove('has-content');
+    }
+  }
+
+  function clearInputs() {
+    document.getElementById('input-sleep').value = '';
+    document.getElementById('input-focus').value = '';
+    document.getElementById('toggle-lost').checked = false;
+    updateToggleLabel();
+    document.getElementById('toggle-exclude').checked = false;
+    updateExcludeLabel();
+    document.getElementById('toggle-emergency').checked = false;
+    updateEmergencyLabel();
+    document.getElementById('input-trigger').value = '';
+    document.getElementById('trigger-wrapper').classList.remove('open');
+  }
+
+  function setInputs(record) {
+    document.getElementById('input-sleep').value = record.sleep_time || '';
+    document.getElementById('input-focus').value = record.focus_min != null ? record.focus_min : '';
+    document.getElementById('toggle-lost').checked = record.lost_control === 1;
+    updateToggleLabel();
+    document.getElementById('toggle-exclude').checked = record.exclude_focus === 1;
+    updateExcludeLabel();
+    document.getElementById('toggle-emergency').checked = record.emergency_late === 1;
+    updateEmergencyLabel();
+    if (record.lost_control === 1) {
+      document.getElementById('input-trigger').value = record.trigger || '';
+      document.getElementById('trigger-wrapper').classList.add('open');
+    } else {
+      document.getElementById('input-trigger').value = '';
+      document.getElementById('trigger-wrapper').classList.remove('open');
+    }
+  }
+
+  function loadForDate(date, _data) {
+    var data = _data !== undefined ? _data : loadData();
+    var record = findRecord(data, date);
+    var feedbackEl = document.getElementById('feedback-text');
+
+    if (record) {
+      setInputs(record);
+      var fb = generateFeedback(record.sleep_time, record.focus_min, record.lost_control, record.trigger || '', data, date);
+      feedbackEl.innerHTML = fb;
+      if (fb) {
+        feedbackEl.classList.add('has-content');
+      } else {
+        feedbackEl.classList.remove('has-content');
+      }
+    } else {
+      clearInputs();
+      feedbackEl.innerHTML = '';
+      feedbackEl.classList.remove('has-content');
+    }
+    setUIState(data);
+  }
+
+  function updateToggleLabel() {
+    var checked = document.getElementById('toggle-lost').checked;
+    var labelEl = document.getElementById('toggle-label-text');
+    labelEl.textContent = checked ? '是' : '否';
+    if (checked) {
+      labelEl.classList.add('is-on');
+    } else {
+      labelEl.classList.remove('is-on');
+    }
+  }
+  function updateExcludeLabel() {
+    var checked = document.getElementById('toggle-exclude').checked;
+    var el = document.getElementById('toggle-exclude-label');
+    el.textContent = checked ? '是' : '否';
+    if (checked) el.classList.add('is-on'); else el.classList.remove('is-on');
+  }
+  function updateEmergencyLabel() {
+    var checked = document.getElementById('toggle-emergency').checked;
+    var el = document.getElementById('toggle-emergency-label');
+    el.textContent = checked ? '是' : '否';
+    if (checked) el.classList.add('is-on'); else el.classList.remove('is-on');
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     模块 11 · 历史记录
+     ═══════════════════════════════════════════════════════════════ */
+
+  function renderHistory(data) {
+    var container = document.getElementById('history-list');
+    var moreEl = document.getElementById('history-more');
+    var recent = data.slice(-30).reverse();
+
+    container.innerHTML = '';
+
+    if (recent.length === 0) {
+      var empty = document.createElement('div');
+      empty.style.cssText = 'text-align:center; color:#ccc; padding:16px; font-size:0.85rem;';
+      empty.textContent = '暂无观测记录';
+      container.appendChild(empty);
+      moreEl.textContent = '';
+      return;
+    }
+
+    recent.forEach(function(rec) {
+      var row = document.createElement('div');
+      row.className = 'history-row';
+
+      var dateSpan = document.createElement('span');
+      dateSpan.className = 'h-date';
+      dateSpan.textContent = formatMD(rec.date);
+
+      var scoresSpan = document.createElement('span');
+      scoresSpan.className = 'h-scores';
+      var sleepStr = rec.sleep_time || '—';
+      var focusStr = (rec.focus_min != null ? rec.focus_min + 'min' : '—');
+      var lostMarker = rec.lost_control === 1 ? ' 🔴' : '';
+      scoresSpan.innerHTML = '🌙' + sleepStr + ' 🎯' + focusStr + lostMarker;
+      if (rec.exclude_focus === 1) scoresSpan.innerHTML += ' 🔕';
+      if (rec.emergency_late === 1) scoresSpan.innerHTML += ' 🚨';
+
+      var noteSpan = document.createElement('span');
+      noteSpan.className = 'h-note';
+      if (rec.lost_control === 1 && rec.trigger) {
+        noteSpan.textContent = '触发: ' + rec.trigger;
+      } else {
+        noteSpan.textContent = '';
+      }
+
+      var delBtn = document.createElement('button');
+      delBtn.className = 'h-del';
+      delBtn.textContent = '❌';
+      delBtn.title = '删除此条';
+      delBtn.addEventListener('click', function() {
+        if (confirm('删除 ' + formatMD(rec.date) + ' 的记录？')) {
+          deleteRecord(rec.date);
+        }
+      });
+
+      row.appendChild(dateSpan);
+      row.appendChild(scoresSpan);
+      row.appendChild(noteSpan);
+      row.appendChild(delBtn);
+      container.appendChild(row);
+    });
+
+    if (data.length > 30) {
+      moreEl.textContent = '还有 ' + (data.length - 30) + ' 条更早记录未显示';
+    } else {
+      moreEl.textContent = '';
+    }
+  }
+
+  function deleteRecord(date) {
+    var data = loadData();
+    data = data.filter(function(r) { return r.date !== date; });
+    saveData(data);
+
+    var selDate = getSelectedDate();
+    var hasSelected = !!findRecord(data, selDate);
+
+    renderChart(data, viewMode, viewYear, viewMonth);
+    renderStreak(data);
+    renderDots(data);
+    renderHistory(data);
+    renderSystemWarning(data);
+    renderInsight(data);
+
+    if (!hasSelected && date === selDate) {
+      clearInputs();
+      setUIState(data);
+    } else {
+      loadForDate(selDate, data);
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     模块 12 · 提交逻辑
+     ═══════════════════════════════════════════════════════════════ */
+
+  function submit() {
+    var sleepTime = document.getElementById('input-sleep').value.trim();
+    var focusStr = document.getElementById('input-focus').value.trim();
+    var lostControl = document.getElementById('toggle-lost').checked ? 1 : 0;
+    var trigger = lostControl ? document.getElementById('input-trigger').value.trim() : '';
+    var excludeFocus = document.getElementById('toggle-exclude').checked ? 1 : 0;
+    var emergencyLate = document.getElementById('toggle-emergency').checked ? 1 : 0;
+    var selDate = getSelectedDate();
+
+    // 至少填一项
+    if (!sleepTime && focusStr === '') {
+      alert('至少填写入睡时间或专注时长中的一项。');
+      return;
+    }
+    var focusMin = null;
+    if (focusStr !== '') {
+      focusMin = parseInt(focusStr, 10);
+      if (isNaN(focusMin) || focusMin < 0) {
+        alert('专注时长为0或正整数。');
+        document.getElementById('input-focus').focus();
+        return;
+      }
+    }
+
+    var data = loadData();
+    var idx = -1;
+    for (var i = 0; i < data.length; i++) {
+      if (data[i].date === selDate) { idx = i; break; }
+    }
+
+    var record;
+    if (idx >= 0) {
+      // 更新已有记录：只覆盖填了的字段
+      record = data[idx];
+      if (sleepTime) record.sleep_time = sleepTime;
+      if (focusMin != null) record.focus_min = focusMin;
+      record.lost_control = lostControl;
+      record.trigger = trigger;
+      record.exclude_focus = excludeFocus;
+      record.emergency_late = emergencyLate;
+      data[idx] = record;
+    } else {
+      // 新记录：未填字段留空
+      record = {
+        date: selDate,
+        sleep_time: sleepTime || '',
+        focus_min: focusMin,
+        lost_control: lostControl,
+        trigger: trigger,
+        exclude_focus: excludeFocus,
+        emergency_late: emergencyLate
+      };
+      data.push(record);
+      data.sort(function(a, b) { return a.date.localeCompare(b.date); });
+    }
+
+    if (!saveData(data)) return;
+    syncPushSilent();
+    renderChart(data, viewMode, viewYear, viewMonth);
+    renderStreak(data);
+    renderDots(data);
+    renderHistory(data);
+    renderSystemWarning(data);
+    renderInsight(data);
+    setUIState(data);
+
+    var feedbackEl = document.getElementById('feedback-text');
+    var fb = generateFeedback(
+      record.sleep_time || '',
+      record.focus_min,
+      record.lost_control,
+      record.trigger || '',
+      data,
+      selDate
+    );
+    feedbackEl.innerHTML = fb;
+    if (fb) {
+      feedbackEl.classList.add('has-content');
+    } else {
+      feedbackEl.classList.remove('has-content');
+    }
+
+    if (!lostControl) {
+      document.getElementById('input-trigger').value = '';
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     模块 13 · 事件绑定 & 初始化
+     ═══════════════════════════════════════════════════════════════ */
+
+  function bindEvents() {
+    document.getElementById('submit-btn').addEventListener('click', submit);
+
+    document.getElementById('input-date').addEventListener('change', function() {
+      loadForDate(this.value);
+    });
+
+    document.getElementById('input-trigger').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submit();
+      }
+    });
+
+    document.getElementById('input-focus').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submit();
+      }
+    });
+
+    document.getElementById('toggle-lost').addEventListener('change', function() {
+      var wrapper = document.getElementById('trigger-wrapper');
+      updateToggleLabel();
+      if (this.checked) {
+        wrapper.classList.add('open');
+        setTimeout(function() { document.getElementById('input-trigger').focus(); }, 350);
+      } else {
+        wrapper.classList.remove('open');
+        document.getElementById('input-trigger').value = '';
+      }
+    });
+
+    document.getElementById('toggle-exclude').addEventListener('change', function() {
+      updateExcludeLabel();
+    });
+    document.getElementById('toggle-emergency').addEventListener('change', function() {
+      updateEmergencyLabel();
+    });
+
+    // 视图切换按钮
+    var vbs = document.querySelectorAll('.view-btn');
+    for (var vb = 0; vb < vbs.length; vb++) {
+      vbs[vb].addEventListener('click', function() {
+        var nm = this.getAttribute('data-view');
+        if (nm === viewMode) return;
+        viewMode = nm;
+        var abs = document.querySelectorAll('.view-btn');
+        for (var ab = 0; ab < abs.length; ab++) { abs[ab].classList.remove('active'); }
+        this.classList.add('active');
+        updateViewUI();
+        var d = loadData();
+        renderChart(d, viewMode, viewYear, viewMonth);
+      });
+    }
+    // 导航左
+    document.getElementById('nav-prev').addEventListener('click', function() {
+      if (viewMode === 'month') { viewMonth--; if (viewMonth < 1) { viewMonth = 12; viewYear--; } }
+      else if (viewMode === 'year') { viewYear--; }
+      updateViewUI();
+      var d = loadData();
+      renderChart(d, viewMode, viewYear, viewMonth);
+    });
+    // 导航右
+    document.getElementById('nav-next').addEventListener('click', function() {
+      if (viewMode === 'month') { viewMonth++; if (viewMonth > 12) { viewMonth = 1; viewYear++; } }
+      else if (viewMode === 'year') { viewYear++; }
+      updateViewUI();
+      var d = loadData();
+      renderChart(d, viewMode, viewYear, viewMonth);
+    });
+  }
+
+  function init() {
+    var today = getToday();
+    viewYear = today.getFullYear ? new Date().getFullYear() : viewYear;
+    viewMonth = new Date().getMonth() + 1;
+    document.getElementById('input-date').value = today;
+    var data = loadData();
+    loadForDate(today, data);
+    updateViewUI();
+    renderChart(data, viewMode, viewYear, viewMonth);
+    renderStreak(data);
+    renderDots(data);
+    renderHistory(data);
+    renderSystemWarning(data);
+    renderInsight(data);
+
+    bindEvents();
+    autoSyncPull();
+  }
+
+  if (typeof Chart === 'undefined') {
+    console.warn('Chart.js 未加载，图表功能不可用。数据记录不受影响。');
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+
+  // 注册 Service Worker（PWA 离线支持）
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(function() {});
+  }
+  </script>
+
+  <!-- 同步设置浮动按钮 -->
+  <div id="syncFab" style="position:fixed;bottom:20px;right:20px;z-index:999;">
+    <button id="syncFabBtn" onclick="toggleSyncPanel()" style="width:48px;height:48px;border-radius:50%;background:#2196F3;color:#fff;border:none;font-size:1.2rem;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.15);" title="同步设置">☁️</button>
+  </div>
+
+  <!-- 同步面板 -->
+  <div id="syncPanel" style="display:none;position:fixed;bottom:80px;right:20px;z-index:999;background:#fff;border-radius:12px;padding:16px;box-shadow:0 4px 20px rgba(0,0,0,0.15);width:300px;max-width:90vw;">
+    <div style="font-weight:600;margin-bottom:10px;font-size:0.95rem">☁️ 跨设备同步</div>
+    <div style="margin-bottom:8px">
+      <label style="font-size:0.8rem;color:#888">GitHub Token</label>
+      <input type="password" id="syncToken" placeholder="ghp_xxx" style="width:100%;padding:6px 8px;border:1px solid #e0e0e0;border-radius:6px;font-size:0.85rem;margin-top:2px">
+    </div>
+    <div style="margin-bottom:8px">
+      <label style="font-size:0.8rem;color:#888">Gist ID</label>
+      <input type="text" id="syncGistId" placeholder="abc123def456" style="width:100%;padding:6px 8px;border:1px solid #e0e0e0;border-radius:6px;font-size:0.85rem;margin-top:2px">
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:8px">
+      <button onclick="syncPull()" style="flex:1;padding:8px;border:1px solid #e0e0e0;border-radius:6px;background:#fff;cursor:pointer;font-size:0.85rem">📥 拉取</button>
+      <button onclick="syncPush()" style="flex:1;padding:8px;border:1px solid #e0e0e0;border-radius:6px;background:#fff;cursor:pointer;font-size:0.85rem">📤 上传</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:6px">
+      <button onclick="exportDataToClipboard()" style="flex:1;padding:6px;border:1px solid #e0e0e0;border-radius:6px;background:#fafafa;cursor:pointer;font-size:0.8rem">📋 复制全部</button>
+      <button onclick="importDataFromPrompt()" style="flex:1;padding:6px;border:1px solid #e0e0e0;border-radius:6px;background:#fafafa;cursor:pointer;font-size:0.8rem">📌 粘贴导入</button>
+    </div>
+    <div id="syncStatus" style="font-size:0.75rem;color:#4CAF50;text-align:center;min-height:18px"></div>
+    <div style="font-size:0.7rem;color:#bbb;text-align:center;margin-top:6px">Token 和 Gist ID 保存在本地</div>
+  </div>
+
+</body>
+</html>
