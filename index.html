@@ -339,6 +339,37 @@
       border-color: #4CAF50;
     }
 
+    /* 日期行（输入+今天按钮） */
+    .date-row {
+      display: flex;
+      gap: 8px;
+    }
+    .date-row #input-date {
+      width: auto;
+      flex: 1;
+      min-width: 0;
+    }
+    .today-btn {
+      height: 48px;
+      padding: 0 16px;
+      border: 1px solid #4CAF50;
+      border-radius: 8px;
+      background: #fff;
+      color: #4CAF50;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      font-family: inherit;
+      transition: background 0.2s;
+      -webkit-appearance: none;
+      appearance: none;
+      flex-shrink: 0;
+    }
+    .today-btn:active {
+      background: #E8F5E9;
+    }
+
     /* 时间输入 */
     input[type="time"] {
       width: 100%;
@@ -708,7 +739,10 @@
           <span class="label-text">📅 日期</span>
           <span class="input-hint">可补录历史</span>
         </div>
-        <input type="date" id="input-date" aria-label="记录日期">
+        <div class="date-row">
+          <input type="date" id="input-date" aria-label="记录日期">
+          <button id="btn-today" type="button" class="today-btn">今天</button>
+        </div>
       </div>
 
       <!-- 入睡时间 -->
@@ -802,10 +836,7 @@
      模块 0 · 种子数据（首次加载自动写入）
      ═══════════════════════════════════════════════════════════════ */
 
-  var SEED_DATA = [
-    { date: '2026-05-11', sleep_time: '01:02', focus_min: 360, lost_control: 0, trigger: '', exclude_focus: 0, emergency_late: 0 },
-    { date: '2026-05-12', sleep_time: '01:04', focus_min: 240, lost_control: 0, trigger: '', exclude_focus: 0, emergency_late: 0 }
-  ];
+  var SEED_DATA = [];
 
   /* ═══════════════════════════════════════════════════════════════
      模块 1 · PWA Manifest（IIFE）
@@ -931,6 +962,14 @@
     localStorage.setItem('sync-settings', JSON.stringify(s));
   }
 
+  function saveInputsToSettings() {
+    var token = document.getElementById('syncToken').value.trim();
+    var gistId = document.getElementById('syncGistId').value.trim();
+    if (token || gistId) {
+      saveSyncSettings({ token: token, gistId: gistId });
+    }
+  }
+
   /* ── 同步面板开关 ── */
   function toggleSyncPanel() {
     var panel = document.getElementById('syncPanel');
@@ -949,6 +988,7 @@
 
   /* ── 推送到 Gist ── */
   function syncPush() {
+    saveInputsToSettings();
     var s = getSyncSettings();
     if (!s.token || !s.gistId) { setSyncStatus('请先填写 Token 和 Gist ID', '#F44336'); return; }
     setSyncStatus('上传中...', '#888');
@@ -965,6 +1005,7 @@
 
   /* ── 从 Gist 拉取并合并 ── */
   function syncPull() {
+    saveInputsToSettings();
     var s = getSyncSettings();
     if (!s.token || !s.gistId) { setSyncStatus('请先填写 Token 和 Gist ID', '#F44336'); return; }
     setSyncStatus('拉取中...', '#888');
@@ -2385,6 +2426,12 @@
 
     document.getElementById('input-date').addEventListener('change', function() {
       loadForDate(this.value);
+    });
+
+    document.getElementById('btn-today').addEventListener('click', function() {
+      var today = getToday();
+      document.getElementById('input-date').value = today;
+      loadForDate(today);
     });
 
     document.getElementById('input-trigger').addEventListener('keydown', function(e) {
