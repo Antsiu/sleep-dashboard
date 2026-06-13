@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>系统状态仪表盘</title>
+  <title>状态仪表盘</title>
   <meta name="theme-color" content="#4CAF50">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -76,7 +76,7 @@
     }
 
     /* ═══════════════════════════════════
-       系统警告条（多级别）
+       警告条（多级别）
        ═══════════════════════════════════ */
     .sys-warning {
       display: none;
@@ -223,7 +223,7 @@
     .legend-dot.excluded { background: #ccc; border: 1px dashed #999; }
 
     /* ═══════════════════════════════════
-       系统洞察卡片
+       洞察卡片
        ═══════════════════════════════════ */
     .insight-card .card-title {
       font-size: 0.95rem;
@@ -675,11 +675,11 @@
 
     <!-- 标题区 -->
     <div class="header">
-      <h1>🌀 系统状态仪表盘</h1>
+      <h1>🌀 状态仪表盘</h1>
       <div class="subtitle">睡眠锚点 · 专注产出 · 情绪扰动</div>
     </div>
 
-    <!-- 系统警告条（多级别，条件显示） -->
+    <!-- 警告条（多级别，条件显示） -->
     <div class="sys-warning" id="sys-warning">
       <span class="warn-icon" id="sys-warning-icon"></span>
       <span id="sys-warning-text"></span>
@@ -710,7 +710,7 @@
         <div class="chart-wrapper" id="chart-wrapper">
           <canvas id="chart-canvas"></canvas>
           <div class="chart-placeholder">
-            从今天开始观测你的系统。<br>每天记录入睡时间、专注时长和情绪状态，<br>两周后你会看到第一条反馈回路。
+            从今天开始观测你的状态。<br>每天记录入睡时间、专注时长和情绪状态，<br>两周后你会看到第一条反馈回路。
           </div>
         </div>
       </div>
@@ -725,9 +725,9 @@
       </div>
     </div>
 
-    <!-- 系统洞察（平均值 + 建议） -->
+    <!-- 洞察（平均值 + 建议） -->
     <div class="card insight-card" id="insight-card">
-      <div class="card-title">📈 系统洞察</div>
+      <div class="card-title">📈 数据洞察</div>
       <div id="insight-content"></div>
     </div>
 
@@ -843,15 +843,15 @@
      ═══════════════════════════════════════════════════════════════ */
   (function setupManifest() {
     var manifest = {
-      name: '系统状态仪表盘',
-      short_name: '系统仪表盘',
+      name: '状态仪表盘',
+      short_name: '状态仪表盘',
       start_url: '.',
       display: 'standalone',
       theme_color: '#4CAF50',
       background_color: '#f8f9fa',
       icons: [
-        { src: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192"><rect width="192" height="192" rx="40" fill="#4CAF50"/><circle cx="96" cy="80" r="50" fill="none" stroke="#fff" stroke-width="8" stroke-dasharray="12 8"/><circle cx="96" cy="80" r="30" fill="#fff" opacity="0.3"/><text x="96" y="155" text-anchor="middle" font-size="24" fill="#fff" font-weight="700">系统仪表盘</text></svg>'), sizes: '192x192', type: 'image/svg+xml' },
-        { src: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect width="512" height="512" rx="100" fill="#4CAF50"/><circle cx="256" cy="200" r="130" fill="none" stroke="#fff" stroke-width="20" stroke-dasharray="30 20"/><circle cx="256" cy="200" r="70" fill="#fff" opacity="0.3"/><text x="256" y="400" text-anchor="middle" font-size="60" fill="#fff" font-weight="700">系统仪表盘</text></svg>'), sizes: '512x512', type: 'image/svg+xml' }
+        { src: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192"><rect width="192" height="192" rx="40" fill="#4CAF50"/><circle cx="96" cy="80" r="50" fill="none" stroke="#fff" stroke-width="8" stroke-dasharray="12 8"/><circle cx="96" cy="80" r="30" fill="#fff" opacity="0.3"/><text x="96" y="155" text-anchor="middle" font-size="24" fill="#fff" font-weight="700">状态仪表盘</text></svg>'), sizes: '192x192', type: 'image/svg+xml' },
+        { src: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect width="512" height="512" rx="100" fill="#4CAF50"/><circle cx="256" cy="200" r="130" fill="none" stroke="#fff" stroke-width="20" stroke-dasharray="30 20"/><circle cx="256" cy="200" r="70" fill="#fff" opacity="0.3"/><text x="256" y="400" text-anchor="middle" font-size="60" fill="#fff" font-weight="700">状态仪表盘</text></svg>'), sizes: '512x512', type: 'image/svg+xml' }
       ]
     };
     var blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
@@ -1608,7 +1608,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════
-     模块 7 · 系统反馈引擎（单日 + 趋势 + 警告）
+     模块 7 · 反馈引擎（单日 + 趋势 + 警告）
      ═══════════════════════════════════════════════════════════════ */
 
   function generateFeedback(sleepTime, focusMin, lostControl, trigger, allData, currentDate) {
@@ -1645,7 +1645,7 @@
     var trendLines = [];
 
     if (sleepPattern === 'consistently_late' && focusTrend === 'falling') {
-      trendLines.push('📉 <b>锚点偏移 + 专注下降</b>：最近' + recent.length + '天睡眠都在凌晨1点后，专注呈下降趋势。这是《系统之美》里的典型反馈回路：锚点偏移 → 流入减少 → 存量下降。优先把入睡往前调30分钟。');
+      trendLines.push('📉 <b>锚点偏移 + 专注下降</b>：最近' + recent.length + '天睡眠都在凌晨1点后，专注呈下降趋势。这是典型的反馈回路：锚点偏移 → 流入减少 → 存量下降。优先把入睡往前调30分钟。');
     } else if (sleepPattern === 'consistently_late' && focusTrend === 'mixed') {
       trendLines.push('🟡 最近' + recent.length + '天睡眠锚点都偏晚。连续偏移会形成惯性，果断打破。');
     } else if (sleepPattern === 'consistently_late') {
@@ -1653,7 +1653,7 @@
     } else if (focusTrend === 'falling') {
       trendLines.push('专注产出呈下降趋势。睡眠数据不足以解释，检查是否有其他扰动（情绪、压力、身体状态）。');
     } else if (sleepPattern === 'improving') {
-      trendLines.push('🌱 睡眠锚点正在往前提，方向对了。坚持几天看看系统响应。');
+      trendLines.push('🌱 睡眠锚点正在往前提，方向对了。坚持几天看看趋势变化。');
     }
 
     if (trendLines.length > 0) {
@@ -1673,7 +1673,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════
-     模块 8 · 系统警告（多级别）
+     模块 8 · 警告（多级别）
      ═══════════════════════════════════════════════════════════════ */
 
   function checkSystemWarnings(data) {
@@ -1709,7 +1709,7 @@
             if (fvals[k] >= fvals[k - 1]) { declining = false; break; }
           }
           if (declining) {
-            return { level: 'severe', icon: '🔴', msg: '锚点持续偏移 + 专注产出连续下降。系统正发出清晰的警告信号。试试把入睡时间往前调30分钟。' };
+            return { level: 'severe', icon: '🔴', msg: '锚点持续偏移 + 专注产出连续下降。数据正发出清晰的警告信号。试试把入睡时间往前调30分钟。' };
           }
         }
         return { level: 'caution', icon: '🟠', msg: '睡眠锚点连续偏晚。虽然专注还没崩，但这种模式不可持续。' };
@@ -1821,13 +1821,13 @@
       if (sleepLate && focusHigh) {
         advice.push('专注均' + curFocusStr + 'min不错。但三次记录全部凌晨' + curSleepStr + '后才睡——高产出正建立在透支上。还需要3天数据才能对比趋势。在此之前做一件事：今晚' + suggestBedtime(recentStats.avgSleepDec) + '前睡。');
       } else if (sleepLate) {
-        advice.push('只有' + recentStats.count + '天数据，趋势对比还要再积累。但现在就能看到一个规律：每次入睡都在凌晨' + curSleepStr + '后。在数据够对比之前，先动锚点——今晚' + suggestBedtime(recentStats.avgSleepDec) + '前关灯。3天后系统就能告诉你变化量。');
+        advice.push('只有' + recentStats.count + '天数据，趋势对比还要再积累。但现在就能看到一个规律：每次入睡都在凌晨' + curSleepStr + '后。在数据够对比之前，先动锚点——今晚' + suggestBedtime(recentStats.avgSleepDec) + '前关灯。3天后数据就能显示变化量。');
       } else if (sleepEarly && focusHigh) {
         advice.push('锚点稳固（均' + curSleepStr + '入睡），专注充足（均' + curFocusStr + 'min）。再积累3天数据就能看到趋势对比。保持方向。');
       } else if (focusLow) {
         advice.push('专注均' + curFocusStr + 'min偏低。只有' + recentStats.count + '天数据，先排查：睡眠够吗？情绪有扰动吗？找到那个最明显的变量，然后动它。');
       } else {
-        advice.push('只有' + recentStats.count + '天数据，系统还在学你的基线。再记3天就有对比分析。这3天里优先稳定锚点：每晚固定时间关灯。');
+        advice.push('只有' + recentStats.count + '天数据，数据还在积累你的基线。再记3天就有对比分析。这3天里优先稳定锚点：每晚固定时间关灯。');
       }
       if (sleepLate) {
         advice.push('一件事：锚点。你现在凌晨' + curSleepStr + '睡。把它往前挪到' + suggestBedtime(recentStats.avgSleepDec) + '，连续3天。这是当前回报率最高的动作。');
@@ -1839,7 +1839,7 @@
     // 规则 1：专注崩溃
     // ═══════════════════════════════════════════════
     if (focusCritical) {
-      advice.push('近3天专注均' + curFocusStr + 'min——系统触底。锚点' + curSleepStr + '。不需要更多数据了：今晚' + (suggestBedtime(recentStats.avgSleepDec) || '23:00') + '前睡，连续3天。睡眠是当前唯一值得关注的变量。');
+      advice.push('近3天专注均' + curFocusStr + 'min——状态触底。锚点' + curSleepStr + '。不需要更多数据了：今晚' + (suggestBedtime(recentStats.avgSleepDec) || '23:00') + '前睡，连续3天。睡眠是当前唯一值得关注的变量。');
       return advice;
     }
 
@@ -1848,7 +1848,7 @@
     // ═══════════════════════════════════════════════
     if (focusChangePct != null && focusChangePct <= -15 && sleepLate) {
       advice.push('专注从' + prevFocusStr + '跌到' + curFocusStr + 'min，降了' + Math.abs(focusChangePct) + '%。锚点纹丝不动——两期都卡在凌晨' + curSleepStr + '。这不是波动，是趋势。');
-      advice.push('👉 今晚只做一件事：' + suggestBedtime(recentStats.avgSleepDec) + '前关灯。连续3天锚点提前到' + suggestBedtime(recentStats.avgSleepDec) + '，专注大概率回到' + prevFocusStr + '以上。系统延迟约3-5天，别在第2天放弃。');
+      advice.push('👉 今晚只做一件事：' + suggestBedtime(recentStats.avgSleepDec) + '前关灯。连续3天锚点提前到' + suggestBedtime(recentStats.avgSleepDec) + '，专注大概率回到' + prevFocusStr + '以上。身体适应约3-5天，别在第2天放弃。');
     }
 
     // ═══════════════════════════════════════════════
@@ -1864,7 +1864,7 @@
     // ═══════════════════════════════════════════════
     else if (focusChangePct != null && focusChangePct < 0 && !sleepLate) {
       advice.push('专注降了' + Math.abs(focusChangePct) + '%（' + prevFocusStr + '→' + curFocusStr + 'min），但锚点不在凌晨1点后，睡眠不是主因。');
-      advice.push('回溯这三天的情绪开关、身体状态、外部压力——有哪个变量变了？找到它，记下来。系统只能分析你记录了的东西。');
+      advice.push('回溯这三天的情绪开关、身体状态、外部压力——有哪个变量变了？找到它，记下来。数据只能分析你记录了的东西。');
     }
 
     // ═══════════════════════════════════════════════
@@ -1880,7 +1880,7 @@
     // ═══════════════════════════════════════════════
     else if (sleepChangeMin != null && sleepChangeMin <= -30 && (focusChangePct == null || focusChangePct <= 0)) {
       advice.push('锚点提前了' + Math.abs(sleepChangeMin) + '分钟（' + prevSleepStr + '→' + curSleepStr + '），方向对。专注暂时' + (focusChangePct != null && focusChangePct < 0 ? '还在降' : '没变化') + '——正常。');
-      advice.push('你的系统从锚点改善到专注响应，延迟约3-5天。大多数人会在第3天放弃。别做大多数人。再等2-3天看数据转弯。');
+      advice.push('身体从锚点改善到专注响应，延迟约3-5天。大多数人会在第3天放弃。别做大多数人。再等2-3天看数据转弯。');
     }
 
     // ═══════════════════════════════════════════════
@@ -1903,8 +1903,8 @@
     // 规则 9：锚点稳固 + 专注充足
     // ═══════════════════════════════════════════════
     else if (sleepEarly && focusHigh) {
-      advice.push('两期对比稳定：锚点' + curSleepStr + '前入睡，专注均' + curFocusStr + 'min。系统运转在健康区间。');
-      advice.push('保持比到达更难。连续保持7天，系统会确认这不是运气——是结构。');
+      advice.push('两期对比稳定：锚点' + curSleepStr + '前入睡，专注均' + curFocusStr + 'min。状态运转在健康区间。');
+      advice.push('保持比到达更难。连续保持7天，数据会确认这不是运气——是结构。');
     }
 
     // ═══════════════════════════════════════════════
@@ -1926,11 +1926,11 @@
       if (sleepLate) {
         advice.push('锚点两期都在凌晨' + curSleepStr + '。专注暂未明显下降，但惯性不站在你这边。趁数据还没变差，把锚点拉到' + suggestBedtime(recentStats.avgSleepDec) + '前。');
       } else {
-        advice.push('系统暂未检测到明显趋势。继续稳定记录——数据多了，规律自己会浮出来。');
+        advice.push('暂未检测到明显趋势。继续稳定记录——数据多了，规律自己会浮出来。');
       }
     }
 
-    // 系统级：排除频率检测
+    // 排除频率检测
     if (recentStats.excludedFocusCount >= 2) {
       advice.push('⚠️ 近' + recentStats.count + '天有' + recentStats.excludedFocusCount + '天专注被排除——习惯被打断的频率偏高。检查：是临时突发事件还是日程边界需要调整？');
     }
@@ -1996,16 +1996,16 @@
     }
     // 锚点偏晚 + 专注高产（悖论）
     else if (sleepLate && focusHigh) {
-      lines.push('专注高不代表系统健康。二十岁的身体能透支，三十岁开始还。');
+      lines.push('专注高不代表状态健康。二十岁的身体能透支，三十岁开始还。');
       lines.push('别把意志力当战略。');
     }
     // 锚点改善 + 专注回升
     else if (sleepChangeMin != null && sleepChangeMin <= -30 && focusChangePct != null && focusChangePct > 0) {
       lines.push('方向对了。复利开始往你这边滚了。无聊的纪律比刺激的灵感值钱一百倍。');
     }
-    // 锚点改善 + 专注暂未响应（系统延迟）
+    // 锚点改善 + 专注暂未响应（身体延迟）
     else if (sleepChangeMin != null && sleepChangeMin <= -30 && (focusChangePct == null || focusChangePct <= 0)) {
-      lines.push('系统有惯性。今天早睡不会明天就变天才。给它两周。');
+      lines.push('身体有惯性。今天早睡不会明天就变天才。给它两周。');
       lines.push('多数人死在复利曲线的前半段。别做多数人。');
     }
     // 锚点恶化
@@ -2018,12 +2018,12 @@
     }
     // 锚点稳固 + 专注充足
     else if (sleepEarly && focusHigh && (focusChangePct == null || focusChangePct >= 0)) {
-      lines.push('系统运转正常。最难的从来不是到达——是留在这里。');
+      lines.push('状态运转正常。最难的从来不是到达——是留在这里。');
       lines.push('每天比昨天聪明一点点。复利会做完剩下的。');
     }
     // 锚点偏晚（通用）
     else if (sleepLate) {
-      lines.push('你很清楚问题在哪。凌晨1点睡然后期待白天专注——这不叫系统，这叫希望。');
+      lines.push('你很清楚问题在哪。凌晨1点睡然后期待白天专注——这不叫规律，这叫希望。');
       lines.push('早睡半小时。试两周。数据会替你说话。');
     }
     // 专注偏低
@@ -2038,11 +2038,11 @@
     return lines;
   }
 
-  /** 渲染系统洞察卡片 */
+  /** 渲染洞察卡片 */
   function renderInsight(data) {
     var container = document.getElementById('insight-content');
     if (data.length < 3) {
-      container.innerHTML = '<div class="insight-empty">至少需要3天数据才能生成洞察<br>继续记录，系统在学习你的模式 🔍</div>';
+      container.innerHTML = '<div class="insight-empty">至少需要3天数据才能生成洞察<br>继续记录，数据在积累你的模式 🔍</div>';
       return;
     }
 
@@ -2125,7 +2125,7 @@
     var advice = generatePrecisionAdvice(cleanRecent, cleanPrev, periods.hasCompare);
     if (advice && advice.length > 0) {
       html += '<div class="advice-block">';
-      html += '<div class="advice-title">🧠 系统建议</div>';
+      html += '<div class="advice-title">🧠 分析建议</div>';
       for (var j = 0; j < advice.length; j++) {
         html += '<div style="margin-bottom:6px;">' + advice[j] + '</div>';
       }
