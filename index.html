@@ -986,21 +986,61 @@
     }
   }
 
-  /* ── 推送到 Gist ── */
+  /* ── 推送到 Gist（先拉后推防覆盖） ── */
   function syncPush() {
     saveInputsToSettings();
     var s = getSyncSettings();
     if (!s.token || !s.gistId) { setSyncStatus('请先填写 Token 和 Gist ID', '#F44336'); return; }
     setSyncStatus('上传中...', '#888');
-    var raw = localStorage.getItem('system-dashboard-data-v2') || '[]';
+    var localRaw = localStorage.getItem('system-dashboard-data-v2') || '[]';
+    // 先拉取远程
     fetch('https://api.github.com/gists/' + s.gistId, {
-      method: 'PATCH',
-      headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ files: { 'sleep-data.json': { content: raw } } })
+      headers: { 'Authorization': 'Bearer ' + s.token }
     })
-    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(r) { return r.json().then(function(body) { return { ok: r.ok, status: r.status, body: body }; }); })
+    .then(function(resp) {
+      if (!resp.ok) {
+        var msg = (resp.body && resp.body.message) ? resp.body.message : ('HTTP ' + resp.status);
+        throw new Error(msg);
+      }
+      var file = resp.body.files['sleep-data.json'];
+      if (!file || !file.content) {
+        // 远程无数据，直接推
+        return pushToGist(s, localRaw);
+      }
+      var remoteData = JSON.parse(file.content);
+      var localData = JSON.parse(localRaw);
+      if (!Array.isArray(remoteData) || !Array.isArray(localData)) {
+        return pushToGist(s, localRaw);
+      }
+      // 合并
+      var merged = {};
+      for (var i = 0; i < remoteData.length; i++) { merged[remoteData[i].date] = remoteData[i]; }
+      for (var j = 0; j < localData.length; j++) { merged[localData[j].date] = localData[j]; }
+      var result = [];
+      var keys = Object.keys(merged).sort();
+      for (var k = 0; k < keys.length; k++) { result.push(merged[keys[k]]); }
+      var mergedRaw = JSON.stringify(result);
+      localStorage.setItem('system-dashboard-data-v2', mergedRaw);
+      return pushToGist(s, mergedRaw);
+    })
     .then(function() { setSyncStatus('✅ 已上传', '#4CAF50'); })
     .catch(function(e) { setSyncStatus('上传失败: ' + e.message, '#F44336'); });
+
+    function pushToGist(settings, dataRaw) {
+      return fetch('https://api.github.com/gists/' + settings.gistId, {
+        method: 'PATCH',
+        headers: { 'Authorization': 'Bearer ' + settings.token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files: { 'sleep-data.json': { content: dataRaw } } })
+      }).then(function(r) {
+        return r.json().then(function(body) {
+          if (!r.ok) {
+            var msg = (body && body.message) ? body.message : ('HTTP ' + r.status);
+            throw new Error(msg);
+          }
+        });
+      });
+    }
   }
 
   /* ── 从 Gist 拉取并合并 ── */
@@ -1012,40 +1052,60 @@
     fetch('https://api.github.com/gists/' + s.gistId, {
       headers: { 'Authorization': 'Bearer ' + s.token }
     })
-    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(r) {
+      return r.json().then(function(body) {
+        if (!r.ok) {
+          var msg = (body && body.message) ? body.message : ('HTTP ' + r.status);
+          throw new Error(msg);
+        }
+        return body;
+      });
+    })
     .then(function(gist) {
       var file = gist.files['sleep-data.json'];
-      if (!file || !file.content) throw new Error('Gist 中无数据');
-      var remoteData = JSON.parse(file.content);
-      if (!Array.isArray(remoteData)) throw new Error('数据格式错误');
-      // 合并：以日期为 key，远程数据覆盖本地同日期，保留本地独有的
-      var localData = loadData();
-      var merged = {};
-      for (var i = 0; i < localData.length; i++) { merged[localData[i].date] = localData[i]; }
-      for (var j = 0; j < remoteData.length; j++) {
-        var rd2 = remoteData[j];
-        var existing2 = merged[rd2.date];
-        if (existing2) {
-          if (rd2.exclude_focus === undefined) rd2.exclude_focus = existing2.exclude_focus;
-          if (rd2.emergency_late === undefined) rd2.emergency_late = existing2.emergency_late;
-        }
-        merged[rd2.date] = rd2;
+      if (!file) throw new Error('Gist 中无 sleep-data.json 文件');
+      // content 为空时用 raw_url 兜底
+      var getContent;
+      if (file.content) {
+        getContent = Promise.resolve(file.content);
+      } else if (file.raw_url) {
+        getContent = fetch(file.raw_url).then(function(rr) { return rr.text(); });
+      } else {
+        throw new Error('Gist 文件内容为空');
       }
-      var result = [];
-      var keys = Object.keys(merged).sort();
-      for (var k = 0; k < keys.length; k++) { result.push(merged[keys[k]]); }
-      saveData(result);
-      setSyncStatus('✅ 已合并 ' + result.length + ' 条', '#4CAF50');
-      // 刷新页面
-      var d = loadData();
-      renderChart(d, viewMode, viewYear, viewMonth);
-      renderStreak(d);
-      renderDots(d);
-      renderHistory(d);
-      renderSystemWarning(d);
-      renderInsight(d);
-      var today = getToday();
-      loadForDate(today, d);
+      return getContent.then(function(content) {
+        if (!content) throw new Error('Gist 文件内容为空');
+        var remoteData = JSON.parse(content);
+        if (!Array.isArray(remoteData)) throw new Error('数据格式错误');
+        // 合并：以日期为 key，远程数据覆盖本地同日期，保留本地独有的
+        var localData = loadData();
+        var merged = {};
+        for (var i = 0; i < localData.length; i++) { merged[localData[i].date] = localData[i]; }
+        for (var j = 0; j < remoteData.length; j++) {
+          var rd2 = remoteData[j];
+          var existing2 = merged[rd2.date];
+          if (existing2) {
+            if (rd2.exclude_focus === undefined) rd2.exclude_focus = existing2.exclude_focus;
+            if (rd2.emergency_late === undefined) rd2.emergency_late = existing2.emergency_late;
+          }
+          merged[rd2.date] = rd2;
+        }
+        var result = [];
+        var keys = Object.keys(merged).sort();
+        for (var k = 0; k < keys.length; k++) { result.push(merged[keys[k]]); }
+        saveData(result);
+        setSyncStatus('✅ 已合并 ' + result.length + ' 条', '#4CAF50');
+        // 刷新页面
+        var d = loadData();
+        renderChart(d, viewMode, viewYear, viewMonth);
+        renderStreak(d);
+        renderDots(d);
+        renderHistory(d);
+        renderSystemWarning(d);
+        renderInsight(d);
+        var today = getToday();
+        loadForDate(today, d);
+      });
     })
     .catch(function(e) { setSyncStatus('拉取失败: ' + e.message, '#F44336'); });
   }
@@ -1106,53 +1166,125 @@
     setTimeout(function() { el.textContent = ''; }, 3000);
   }
 
-  /* ── 静默推送（submit 后自动调用） ── */
+  /* ── 静默推送（submit 后自动调用，先拉后推防覆盖） ── */
+  var _syncLocked = false;
   function syncPushSilent() {
+    saveInputsToSettings();
+    if (_syncLocked) return;
     var s = getSyncSettings();
     if (!s.token || !s.gistId) return;
-    var raw = localStorage.getItem('system-dashboard-data-v2') || '[]';
+    var localRaw = localStorage.getItem('system-dashboard-data-v2') || '[]';
+    _syncLocked = true;
+    // 先拉取远程数据
     fetch('https://api.github.com/gists/' + s.gistId, {
-      method: 'PATCH',
-      headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ files: { 'sleep-data.json': { content: raw } } })
-    }).catch(function() {});
+      headers: { 'Authorization': 'Bearer ' + s.token }
+    })
+    .then(function(r) {
+      if (!r.ok) throw new Error('pull-before-push-failed');
+      return r.json();
+    })
+    .then(function(gist) {
+      var file = gist.files['sleep-data.json'];
+      var remoteRaw = (file && file.content) ? file.content : null;
+      if (!remoteRaw && file && file.raw_url) {
+        // content 为空时用 raw_url
+        return fetch(file.raw_url).then(function(rr) { return rr.text(); });
+      }
+      return remoteRaw;
+    })
+    .then(function(remoteStr) {
+      if (!remoteStr) {
+        // 远程无数据，直接推本地
+        return pushRaw(s, localRaw);
+      }
+      try {
+        var remoteData = JSON.parse(remoteStr);
+        var localData = JSON.parse(localRaw);
+        if (!Array.isArray(remoteData) || !Array.isArray(localData)) {
+          return pushRaw(s, localRaw);
+        }
+        // 合并：同日期以本地为准（本地是最新提交的）
+        var merged = {};
+        for (var i = 0; i < remoteData.length; i++) {
+          merged[remoteData[i].date] = remoteData[i];
+        }
+        for (var j = 0; j < localData.length; j++) {
+          merged[localData[j].date] = localData[j];
+        }
+        var result = [];
+        var keys = Object.keys(merged).sort();
+        for (var k = 0; k < keys.length; k++) {
+          result.push(merged[keys[k]]);
+        }
+        var mergedRaw = JSON.stringify(result);
+        localStorage.setItem('system-dashboard-data-v2', mergedRaw);
+        return pushRaw(s, mergedRaw);
+      } catch(e) {
+        return pushRaw(s, localRaw);
+      }
+    })
+    .catch(function() { _syncLocked = false; });
+
+    function pushRaw(settings, dataRaw) {
+      return fetch('https://api.github.com/gists/' + settings.gistId, {
+        method: 'PATCH',
+        headers: { 'Authorization': 'Bearer ' + settings.token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files: { 'sleep-data.json': { content: dataRaw } } })
+      }).then(function() { _syncLocked = false; })
+        .catch(function() { _syncLocked = false; });
+    }
   }
 
   /* ── 自动拉取（页面加载时执行一次） ── */
   function autoSyncPull() {
     var s = getSyncSettings();
     if (!s.token || !s.gistId) return;
+    _syncLocked = true;
     fetch('https://api.github.com/gists/' + s.gistId, {
       headers: { 'Authorization': 'Bearer ' + s.token }
     })
-    .then(function(r) { if (!r.ok) return; return r.json(); })
+    .then(function(r) { if (!r.ok) { _syncLocked = false; return; } return r.json(); })
     .then(function(gist) {
-      if (!gist) return;
+      if (!gist) { _syncLocked = false; return; }
       var file = gist.files['sleep-data.json'];
-      if (!file || !file.content) return;
-      var remoteData = JSON.parse(file.content);
-      if (!Array.isArray(remoteData)) return;
-      var localData = loadData();
-      var merged = {};
-      for (var i = 0; i < localData.length; i++) { merged[localData[i].date] = localData[i]; }
-      for (var j = 0; j < remoteData.length; j++) {
-        var rd = remoteData[j];
-        var existing = merged[rd.date];
-        if (existing) {
-          if (rd.exclude_focus === undefined) rd.exclude_focus = existing.exclude_focus;
-          if (rd.emergency_late === undefined) rd.emergency_late = existing.emergency_late;
+      if (!file) { _syncLocked = false; return; }
+      // content 为空时用 raw_url 兜底
+      var getContent;
+      if (file.content) {
+        getContent = Promise.resolve(file.content);
+      } else if (file.raw_url) {
+        getContent = fetch(file.raw_url).then(function(rr) { return rr.text(); });
+      } else {
+        _syncLocked = false;
+        return;
+      }
+      return getContent.then(function(content) {
+        if (!content) { _syncLocked = false; return; }
+        var remoteData = JSON.parse(content);
+        if (!Array.isArray(remoteData)) { _syncLocked = false; return; }
+        var localData = loadData();
+        var merged = {};
+        for (var i = 0; i < localData.length; i++) { merged[localData[i].date] = localData[i]; }
+        for (var j = 0; j < remoteData.length; j++) {
+          var rd = remoteData[j];
+          var existing = merged[rd.date];
+          if (existing) {
+            if (rd.exclude_focus === undefined) rd.exclude_focus = existing.exclude_focus;
+            if (rd.emergency_late === undefined) rd.emergency_late = existing.emergency_late;
+          }
+          merged[rd.date] = rd;
         }
-        merged[rd.date] = rd;
-      }
-      var result = [];
-      var keys = Object.keys(merged).sort();
-      for (var k = 0; k < keys.length; k++) { result.push(merged[keys[k]]); }
-      if (result.length > localData.length || JSON.stringify(result) !== JSON.stringify(localData)) {
-        saveData(result);
-        location.reload();
-      }
+        var result = [];
+        var keys = Object.keys(merged).sort();
+        for (var k = 0; k < keys.length; k++) { result.push(merged[keys[k]]); }
+        _syncLocked = false;
+        if (result.length > localData.length || JSON.stringify(result) !== JSON.stringify(localData)) {
+          saveData(result);
+          location.reload();
+        }
+      });
     })
-    .catch(function() {});
+    .catch(function() { _syncLocked = false; });
   }
 
   function saveData(data) {
